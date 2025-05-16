@@ -107,7 +107,7 @@ class GameDataCollector:
             return
         f = lambda x: int(x[5:-4])
         
-        if not os.path.exists(self.output_dir):
+        if not os.path.exists(self.output_dir) or len(list(os.scandir(self.output_dir)))==0:
             game_id = 0
         else:
             # si hay juegos guardados, el id es el siguiente
