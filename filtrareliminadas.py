@@ -1,9 +1,10 @@
 import os
-def iswin(a):
+import subprocess
+"""def iswin(a):
     if "Loss" in a[8]:
         return False
     else:
-        return True
+        return True"""
 
 def eliminar_perdidas():
     """
@@ -12,8 +13,11 @@ def eliminar_perdidas():
     lista_de_partidas = os.listdir("pacman_data")
     lista_de_partidas.sort()
     for i in lista_de_partidas:
-        info_partida = !python pacman.py --csv pacman_data/{i} -q
-        if iswin(info_partida) == False:
+        output =  subprocess.run(["python", "pacman.py", "--csv" ,f"./pacman_data/{i}", "-q"], capture_output = True).stdout
+        info_partida = output.split()
+        #print(info_partida)
+        info_partida = info_partida[-1].decode('utf-8')
+        if info_partida == 'Loss':
             print(f"Eliminando {i}")
             os.remove(f"pacman_data/{i}")
         # else:
