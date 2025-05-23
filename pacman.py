@@ -57,6 +57,7 @@ import os
 ###################################################
 import gamedata
 from playback import CSVPlaybackAgent
+from line_profiler import profile
 # Definimos una variable global para el modo de reproducción
 replay_mode = False
 ###################################################
@@ -87,15 +88,15 @@ class GameState:
     ####################################################
 
     # static variable keeps track of which states have had getLegalActions called
-    explored = set()
+    # explored = set()
 
-    def getAndResetExplored():
-        tmp = GameState.explored.copy()
-        GameState.explored = set()
-        return tmp
-    getAndResetExplored = staticmethod(getAndResetExplored)
+    # def getAndResetExplored():
+    #     tmp = GameState.explored.copy()
+    #     GameState.explored = set()
+    #     return tmp
+    # getAndResetExplored = staticmethod(getAndResetExplored)
 
-    def getLegalActions(self, agentIndex=0):
+    def getLegalActions(self, agentIndex=0) -> list[str]:
         """
         Returns the legal actions for the agent specified.
         """
@@ -108,6 +109,7 @@ class GameState:
         else:
             return GhostRules.getLegalActions(self, agentIndex)
 
+    @profile
     def generateSuccessor(self, agentIndex, action):
         """
         Returns the successor state after the specified agent takes the action.
@@ -138,8 +140,8 @@ class GameState:
         # Book keeping
         state.data._agentMoved = agentIndex
         state.data.score += state.data.scoreChange
-        GameState.explored.add(self)
-        GameState.explored.add(state)
+        # GameState.explored.add(self)
+        # GameState.explored.add(state)
         return state
 
     def getLegalPacmanActions(self):
@@ -235,6 +237,7 @@ class GameState:
     # You shouldn't need to call these directly #
     #############################################
 
+    @profile
     def __init__(self, prevState=None):
         """
         Generates a new state by copying information from its predecessor.
@@ -353,12 +356,13 @@ class PacmanRules:
     """
     PACMAN_SPEED = 1
 
-    def getLegalActions(state):
+    @staticmethod
+    def getLegalActions(state: GameState):
         """
         Returns a list of possible actions.
         """
         return Actions.getPossibleActions(state.getPacmanState().configuration, state.data.layout.walls)
-    getLegalActions = staticmethod(getLegalActions)
+    # getLegalActions = staticmethod(getLegalActions)
 
     def applyAction(state, action):
         """
@@ -412,7 +416,8 @@ class GhostRules:
     """
     GHOST_SPEED = 1.0
 
-    def getLegalActions(state, ghostIndex):
+    @staticmethod
+    def getLegalActions(state: GameState, ghostIndex: int):
         """
         Ghosts cannot stop, and cannot turn around unless they
         reach a dead end, but can turn 90 degrees at intersections.
@@ -426,7 +431,7 @@ class GhostRules:
         if reverse in possibleActions and len(possibleActions) > 1:
             possibleActions.remove(reverse)
         return possibleActions
-    getLegalActions = staticmethod(getLegalActions)
+    # getLegalActions = staticmethod(getLegalActions)
 
     def applyAction(state, action, ghostIndex):
 
@@ -602,7 +607,7 @@ def readCommand(argv):
     args = dict()
 
     # Fix the random seed
-    random.seed('42')
+    random.seed(42)
 
     # Choose a layout
     args['layout'] = layout.getLayout(options.layout)
@@ -746,8 +751,10 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
     seed = '42'  # o cualquier valor fijo
 
     random.seed(seed)
+    import time
     ###################################################
     for i in range(numGames):
+        start = time.time()
         beQuiet = i < numTraining
         if beQuiet:
                 # Suppress output and graphics
@@ -783,6 +790,8 @@ def runGames(layout, pacman, ghosts, display, numGames, record, numTraining=0, c
             components = {'layout': layout, 'actions': game.moveHistory}
             pickle.dump(components, f)
             f.close()
+        end = time.time()
+        print(f"Time elapsed for game {i}: {end - start} s")
 
     if (numGames-numTraining) > 0:
         scores = [game.state.getScore() for game in games]

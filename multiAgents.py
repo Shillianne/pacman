@@ -11,16 +11,25 @@
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
+from typing import Callable
 import torch
 import numpy as np
 from net import PacmanNet
 import os
 from util import manhattanDistance
-from game import Directions
+from game import Directions, Grid
 import random, util
 random.seed(42)  # For reproducibility
 from game import Agent
 from pacman import GameState
+from line_profiler import profile
+import pickle
+import pandas as pd
+
+with open("vector_table.pickle", "rb") as pf:
+    vector_table: dict[tuple[int, int], np.ndarray] = pickle.load(pf)
+
+score_table = np.array(pd.read_csv("mediumClassic"))
 
 class ReflexAgent(Agent):
     """
@@ -90,6 +99,53 @@ def scoreEvaluationFunction(currentGameState: GameState):
     """
     return currentGameState.getScore()
 
+def providedEvaluationFunction(state: GameState):
+    w1 = 0.0
+    w2 = 0.0
+    w3 = 0.0
+    w4 = 0.0
+    w5 = 0.0
+    pacman_pos = state.getPacmanPosition()
+    score = state.getScore()
+    food_matrix = state.getFood()
+    assert isinstance(food_matrix, Grid)
+    food_distance = min(manhattanDistance(pacman_pos, (x, y)) for x in range(food_matrix.width) for y in range(food_matrix.height) if food_matrix[x][y])
+    capsules_matrix = state.getCapsules()
+    assert isinstance(capsules_matrix, Grid)
+    capsule_distance= min(manhattanDistance(pacman_pos, (x, y)) for x in range(capsules_matrix.width) for y in range(capsules_matrix.height) if capsules_matrix[x][y])
+    positions = state.getGhostPositions()
+    ghost_distance = min(manhattanDistance(pacman_pos, pos) for pos in positions)
+    scared_ghost_distance = 0
+    ghost_state = [(i, g_state.scaredTimer > 0) for i, g_state in enumerate(state.getGhostStates())]
+    if True in [s[1] for s in ghost_state]:
+        scared_ghost_distance = min(manhattanDistance(pacman_pos, positions[idx]) for idx, isScared in ghost_state if isScared)
+    return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
+
+def customEvaluationFunction(state: GameState):
+    pacman_pos: tuple[int, int] = state.getPacmanPosition()
+    food_layout = state.getFood()
+    assert isinstance(food_layout, Grid), "Expected food layout to be a Grid object"
+    if not isinstance(food_layout.data, np.ndarray):
+        food = np.array(food_layout.data)
+    else:
+        food = food_layout.data
+    idxs = np.where(food == 1)
+    out = vector_table[pacman_pos][idxs]
+    res = np.sum(out, axis=0) / np.sum(out)
+    h = np.sum(-(res + 1e-6) * np.log(res + 1e-6))
+
+
+    score = state.getScore()
+    values = np.argmax(out, axis=1)
+    unique, counts = np.unique(values, return_counts=True)
+    d = dict(zip(unique, counts))
+    indexes = np.where(values == sorted(d.keys(), key=lambda x: -d[x])[0])
+    total_vector = np.sum(out[indexes], axis=0)
+
+    pos_eval = score_table[pacman_pos[1]][pacman_pos[0]]
+    dist = min(manhattanDistance(pacman_pos, ghost_pos) for ghost_pos in state.getGhostPositions())
+    return score + (h * score) + dist * 5
+
 class MultiAgentSearchAgent(Agent):
     """
     This class provides some common elements to all of your
@@ -107,51 +163,51 @@ class MultiAgentSearchAgent(Agent):
 
     def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
         self.index = 0 # Pacman is always agent index 0
-        self.evaluationFunction = util.lookup(evalFn, globals())
+        self.evaluationFunction: Callable[[GameState], float] = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
-class MinimaxAgent(MultiAgentSearchAgent):
-    """
-    Your minimax agent (question 2)
-    """
+# class MinimaxAgent(MultiAgentSearchAgent):
+#     """
+#     Your minimax agent (question 2)
+#     """
 
-    def getAction(self, gameState: GameState):
-        """
-        Returns the minimax action from the current gameState using self.depth
-        and self.evaluationFunction.
+#     def getAction(self, gameState: GameState):
+#         """
+#         Returns the minimax action from the current gameState using self.depth
+#         and self.evaluationFunction.
 
-        Here are some method calls that might be useful when implementing minimax.
+#         Here are some method calls that might be useful when implementing minimax.
 
-        gameState.getLegalActions(agentIndex):
-        Returns a list of legal actions for an agent
-        agentIndex=0 means Pacman, ghosts are >= 1
+#         gameState.getLegalActions(agentIndex):
+#         Returns a list of legal actions for an agent
+#         agentIndex=0 means Pacman, ghosts are >= 1
 
-        gameState.generateSuccessor(agentIndex, action):
-        Returns the successor game state after an agent takes an action
+#         gameState.generateSuccessor(agentIndex, action):
+#         Returns the successor game state after an agent takes an action
 
-        gameState.getNumAgents():
-        Returns the total number of agents in the game
+#         gameState.getNumAgents():
+#         Returns the total number of agents in the game
 
-        gameState.isWin():
-        Returns whether or not the game state is a winning state
+#         gameState.isWin():
+#         Returns whether or not the game state is a winning state
 
-        gameState.isLose():
-        Returns whether or not the game state is a losing state
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+#         gameState.isLose():
+#         Returns whether or not the game state is a losing state
+#         """
+#         "*** YOUR CODE HERE ***"
+#         util.raiseNotDefined()
 
-class AlphaBetaAgent(MultiAgentSearchAgent):
-    """
-    Your minimax agent with alpha-beta pruning (question 3)
-    """
+# class AlphaBetaAgent(MultiAgentSearchAgent):
+#     """
+#     Your minimax agent with alpha-beta pruning (question 3)
+#     """
 
-    def getAction(self, gameState: GameState):
-        """
-        Returns the minimax action using self.depth and self.evaluationFunction
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+#     def getAction(self, gameState: GameState):
+#         """
+#         Returns the minimax action using self.depth and self.evaluationFunction
+#         """
+#         "*** YOUR CODE HERE ***"
+#         util.raiseNotDefined()
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -412,11 +468,13 @@ class MinimaxAgent(MultiAgentSearchAgent):
     Minimax agent for Pacman with multiple ghosts
     """
 
+    @profile
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction.
         """
         
+        @profile
         def minimax(agentIndex, depth, gameState):
             """
             Recursive minimax function
@@ -440,6 +498,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             else:
                 return minValue(agentIndex, depth, gameState)
         
+        @profile
         def maxValue(agentIndex, depth, gameState):
             """
             Handles Pacman's moves (maximizing player)
@@ -458,6 +517,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
                 v = max(v, minimax(1, depth, successor))
             return v
 
+        @profile
         def minValue(agentIndex, depth, gameState):
             """
             Handles Ghost moves (minimizing players)

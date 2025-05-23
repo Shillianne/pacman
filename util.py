@@ -31,6 +31,7 @@ import inspect
 import heapq
 import random
 import io
+from typing import Optional
 
 
 class FixedRandom:
@@ -715,3 +716,154 @@ def unmutePrint():
 
     sys.stdout = _ORIGINAL_STDOUT
     #sys.stderr = _ORIGINAL_STDERR
+
+
+def show_tree(filename: str):
+    from searchAgents import Node
+    import os
+    import pickle
+    from pyvis.network import Network
+
+    if "logs" not in filename:
+        filename = os.path.join("logs", filename)
+    if not os.path.exists(filename):
+        raise ValueError(f"Couldn't find the specified file: {filename}")
+    with open(filename, "rb") as pf:
+        tree: Node = pickle.load(pf)
+
+    net = Network(height="800px", width="100%", directed=True)
+
+    def add_nodes(node: Node, parent=None):
+        label = f"{node.name} ({node.role})"
+        color = 'blue' if node.role == 'max' else 'red'
+        net.add_node(id(node), label=label, color=color)
+        if parent:
+            net.add_edge(id(parent), id(node))
+        for child in node.children:
+            add_nodes(child, node)
+
+    add_nodes(tree)
+    net.write_html("tree.html")
+
+
+def visualize_tree(root_node, labels: Optional[list[str]] = None, hash: Optional[list[int]] = None):
+    """
+    Visualize a tree structure using Plotly.
+    
+    Args:
+        root_node: The root node of the tree to visualize
+    """
+    import plotly.graph_objects as go
+    import networkx as nx
+    import random
+    import queue
+
+    # Create a directed graph
+    G = nx.DiGraph()
+    
+    # Use BFS to traverse the tree and build the graph
+    nodes_to_process = queue.Queue()
+    nodes_to_process.put((root_node, None))  # (node, parent)
+    
+    # To track node positions
+    node_positions = {}
+    node_labels = {}
+    node_colors = []
+    
+    # Process nodes using BFS
+    while not nodes_to_process.empty():
+        current_node, parent = nodes_to_process.get()
+        node_id = id(current_node)  # Use memory address as unique ID
+        
+        # Add node to graph
+        role_color = "blue" if current_node.role == "MAX" else "red"
+        role_color = role_color if not hasattr(current_node, "transpositioned") else "green"
+        if hash is not None and True in [current_node.hash == h for h in hash]:
+            role_color = "purple"
+        node_colors.append(role_color)
+        
+        # Add node to graph with label
+        # node_label = f"{current_node.name} ({current_node.role})"
+        if labels is None or True not in [hasattr(current_node, label) for label in labels]:
+            node_label = ""
+        else:
+            mask = [hasattr(current_node, label) for label in labels]
+            data = []
+            for has, label in zip(mask, labels):
+                if has:
+                    data.append(str(getattr(current_node, label)))
+            node_label = '\n'.join(data)
+
+        # node_label = f"{current_node.name}\n{current_node.bestmove}\n{current_node.eval}"
+        G.add_node(node_id)
+        node_labels[node_id] = node_label
+        
+        # Connect to parent if not root
+        if parent is not None:
+            G.add_edge(parent, node_id)
+        
+        # Add children to the queue
+        for child in current_node.children:
+            nodes_to_process.put((child, node_id))
+    
+    # Create a hierarchical layout
+    pos = nx.drawing.nx_agraph.graphviz_layout(G, prog="dot")
+    
+    # Extract positions
+    node_x = []
+    node_y = []
+    for node in G.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+    
+    # Create edge traces
+    edge_x = []
+    edge_y = []
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+    
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        hoverinfo='none',
+        mode='lines')
+    
+    # Create node traces
+    node_trace = go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers+text',
+        hoverinfo='text',
+        marker=dict(
+            showscale=False,
+            color=node_colors,
+            size=10,
+            line_width=2))
+    
+    # Add node labels
+    node_text = []
+    for node in G.nodes():
+        node_text.append(node_labels[node])
+    
+    node_trace.text = node_text
+    node_trace.hovertext = node_text
+    
+    # Create figure
+    fig = go.Figure(data=[edge_trace, node_trace],
+                 layout=go.Layout(
+                    title='Tree Visualization',
+                    showlegend=False,
+                    hovermode='closest',
+                    margin=dict(b=20,l=5,r=5,t=40),
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+    
+    # Make the figure larger to accommodate the large tree
+    fig.update_layout(width=1500, height=1000)
+    
+    return fig
+
