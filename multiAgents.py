@@ -29,8 +29,6 @@ import pandas as pd
 with open("vector_table.pickle", "rb") as pf:
     vector_table: dict[tuple[int, int], np.ndarray] = pickle.load(pf)
 
-score_table = np.array(pd.read_csv("mediumClassic"))
-
 class ReflexAgent(Agent):
     """
     A reflex agent chooses an action at each choice point by examining
@@ -142,7 +140,7 @@ def customEvaluationFunction(state: GameState):
     indexes = np.where(values == sorted(d.keys(), key=lambda x: -d[x])[0])
     total_vector = np.sum(out[indexes], axis=0)
 
-    pos_eval = score_table[pacman_pos[1]][pacman_pos[0]]
+    # pos_eval = score_table[pacman_pos[1]][pacman_pos[0]]
     dist = min(manhattanDistance(pacman_pos, ghost_pos) for ghost_pos in state.getGhostPositions())
     return score + (h * score) + dist * 5
 
