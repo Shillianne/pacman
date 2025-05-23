@@ -35,8 +35,14 @@ import sys
 ###################################################
 import gamedata # Para la extraccion de datos de la partida
 import random
+from line_profiler import profile
+import numpy as np
+import pickle
 random.seed(42) # Para reproducibilidad de los resultados
 ###################################################
+
+with open("layout_data.pickle", "rb") as pf:
+    correlation: dict[tuple[int, int], list[list[bool]]] = pickle.load(pf)
 
 class Agent:
     """
@@ -88,7 +94,7 @@ class Configuration:
     horizontally and y increases vertically.  Therefore, north is the direction of increasing y, or (0,1).
     """
 
-    def __init__(self, pos, direction):
+    def __init__(self, pos: tuple[int, int], direction: str):
         self.pos = pos
         self.direction = direction
 
@@ -105,12 +111,13 @@ class Configuration:
     def __eq__(self, other):
         if other == None:
             return False
-        return (self.pos == other.pos and self.direction == other.direction)
+        return (self.pos == other.pos and self.direction == other.direction)  # maybe remove checking for equal direction?
 
     def __hash__(self):
         x = hash(self.pos)
-        y = hash(self.direction)
-        return hash(x + 13 * y)
+        # y = hash(self.direction)
+        # return hash(x + 13 * y)
+        return hash(x)
 
     def __str__(self):
         return "(x,y)="+str(self.pos)+", "+str(self.direction)
@@ -136,6 +143,7 @@ class AgentState:
     AgentStates hold the state of an agent (configuration, speed, scared, etc).
     """
 
+    @profile
     def __init__(self, startConfiguration, isPacman):
         self.start = startConfiguration
         self.configuration = startConfiguration
@@ -144,6 +152,10 @@ class AgentState:
         # state below potentially used for contest only
         self.numCarrying = 0
         self.numReturned = 0
+
+    # @property
+    # def compare_states(self):
+    #     return self.configuration.pos
 
     def __str__(self):
         if self.isPacman:
@@ -159,6 +171,7 @@ class AgentState:
     def __hash__(self):
         return hash(hash(self.configuration) + 13 * hash(self.scaredTimer))
 
+    @profile
     def copy(self):
         state = AgentState(self.start, self.isPacman)
         state.configuration = self.configuration
@@ -185,6 +198,7 @@ class Grid:
     The __str__ method constructs an output that is oriented like a pacman board.
     """
 
+    @profile
     def __init__(self, width, height, initialValue=False, bitRepresentation=None):
         if initialValue not in [False, True]:
             raise Exception('Grids can only contain booleans')
@@ -192,8 +206,9 @@ class Grid:
 
         self.width = width
         self.height = height
-        self.data = [[initialValue for y in range(
-            height)] for x in range(width)]
+        # self.data = [[initialValue for y in range(height)] for x in range(width)]
+        self.data = np.zeros((width, height), dtype=bool).tolist()
+        # self.data = correlation[(width, height)]
         if bitRepresentation:
             self._unpackBits(bitRepresentation)
 
@@ -233,6 +248,7 @@ class Grid:
     def deepCopy(self):
         return self.copy()
 
+    @profile
     def shallowCopy(self):
         g = Grid(self.width, self.height)
         g.data = self.data
@@ -356,8 +372,9 @@ class Actions:
         return (dx * speed, dy * speed)
     directionToVector = staticmethod(directionToVector)
 
-    def getPossibleActions(config, walls):
-        possible = []
+    @staticmethod
+    def getPossibleActions(config: Configuration, walls):
+        possible: list[str] = []
         x, y = config.pos
         x_int, y_int = int(x + 0.5), int(y + 0.5)
 
@@ -374,7 +391,7 @@ class Actions:
 
         return possible
 
-    getPossibleActions = staticmethod(getPossibleActions)
+    # getPossibleActions = staticmethod(getPossibleActions)
 
     def getLegalNeighbors(position, walls):
         x, y = position
@@ -402,6 +419,7 @@ class Actions:
 
 class GameStateData:
 
+    @profile
     def __init__(self, prevState=None):
         """
         Generates a new data packet by copying information from its predecessor.
@@ -432,11 +450,16 @@ class GameStateData:
         state._capsuleEaten = self._capsuleEaten
         return state
 
+    @profile
     def copyAgentStates(self, agentStates):
         copiedStates = []
         for agentState in agentStates:
             copiedStates.append(agentState.copy())
         return copiedStates
+
+    # @property
+    # def compare_states(self, other: GameState):
+    #     agent_states: list[tuple[int, int]] = [agent.compare_states for agent in self.agentStates]
 
     def __eq__(self, other):
         """
