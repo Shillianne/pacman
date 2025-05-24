@@ -16,6 +16,8 @@ from game import Agent
 from game import Directions
 import random
 
+from pacman import GameState
+
 
 class KeyboardAgent(Agent):
     """
@@ -34,7 +36,7 @@ class KeyboardAgent(Agent):
         self.index = index
         self.keys = []
 
-    def getAction(self, state):
+    def getAction(self, state: GameState):  # type: ignore  # this method will never be extended properly
         from graphicsUtils import keys_waiting
         from graphicsUtils import keys_pressed
         keys = keys_waiting() + keys_pressed()

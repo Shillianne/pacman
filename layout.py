@@ -17,6 +17,7 @@ from game import Grid
 import os
 import random
 from functools import reduce
+from pacman_types import Number
 
 VISIBILITY_MATRIX_CACHE = {}
 
@@ -26,13 +27,13 @@ class Layout:
     A Layout manages the static information about the game board.
     """
 
-    def __init__(self, layoutText):
+    def __init__(self, layoutText: list[str]):
         self.width = len(layoutText[0])
         self.height = len(layoutText)
         self.walls = Grid(self.width, self.height, False)
         self.food = Grid(self.width, self.height, False)
-        self.capsules = []
-        self.agentPositions = []
+        self.capsules: list[tuple[Number, Number]] = []
+        self.agentPositions: list[tuple[int, tuple[Number, Number]]] = []
         self.numGhosts = 0
         self.processLayoutText(layoutText)
         self.layoutText = layoutText
@@ -49,8 +50,16 @@ class Layout:
             vecs = [(-0.5, 0), (0.5, 0), (0, -0.5), (0, 0.5)]
             dirs = [Directions.NORTH, Directions.SOUTH,
                     Directions.WEST, Directions.EAST]
-            vis = Grid(self.width, self.height, {Directions.NORTH: set(), Directions.SOUTH: set(
-            ), Directions.EAST: set(), Directions.WEST: set(), Directions.STOP: set()})
+            vis = Grid(self.width,
+                             self.height,
+                             {
+                                Directions.NORTH: set(),
+                                Directions.SOUTH: set(),
+                                Directions.EAST: set(),
+                                Directions.WEST: set(),
+                                Directions.STOP: set()
+                             }
+                        )
             for x in range(self.width):
                 for y in range(self.height):
                     if self.walls[x][y] == False:
@@ -58,7 +67,7 @@ class Layout:
                             dx, dy = vec
                             nextx, nexty = x + dx, y + dy
                             while (nextx + nexty) != int(nextx) + int(nexty) or not self.walls[int(nextx)][int(nexty)]:
-                                vis[x][y][direction].add((nextx, nexty))
+                                vis[x][y][direction].add((nextx, nexty))  # type: ignore  # this part is incorrect since it was been explicitly stated that Grid.data is a 2-dimensional array
                                 nextx, nexty = x + dx, y + dy
             self.visibility = vis
             VISIBILITY_MATRIX_CACHE[reduce(str.__add__, self.layoutText)] = vis
@@ -86,12 +95,12 @@ class Layout:
     def getFurthestCorner(self, pacPos):
         poses = [(1, 1), (1, self.height - 2), (self.width - 2, 1),
                  (self.width - 2, self.height - 2)]
-        dist, pos = max([(manhattanDistance(p, pacPos), p) for p in poses])
+        _, pos = max([(manhattanDistance(p, pacPos), p) for p in poses])
         return pos
 
     def isVisibleFrom(self, ghostPos, pacPos, pacDirection):
         row, col = [int(x) for x in pacPos]
-        return ghostPos in self.visibility[row][col][pacDirection]
+        return ghostPos in self.visibility[row][col][pacDirection]  # type: ignore  # this part is incorrect since it was been explicitly stated that Grid.data is a 2-dimensional array
 
     def __str__(self):
         return "\n".join(self.layoutText)
@@ -122,9 +131,9 @@ class Layout:
 
     def processLayoutChar(self, x, y, layoutChar):
         if layoutChar == '%':
-            self.walls[x][y] = True
+            self.walls[x][y] = True  # type: ignore  # cannot asigned because Grid cannot know when to return a list[int] or just an int
         elif layoutChar == '.':
-            self.food[x][y] = True
+            self.food[x][y] = True  # type: ignore  # cannot asigned because Grid cannot know when to return a list[int] or just an int
         elif layoutChar == 'o':
             self.capsules.append((x, y))
         elif layoutChar == 'P':
@@ -137,7 +146,7 @@ class Layout:
             self.numGhosts += 1
 
 
-def getLayout(name, back=2):
+def getLayout(name: str, back=2):
     if name.endswith('.lay'):
         layout = tryToLoad('layouts/' + name)
         if layout == None:
@@ -154,7 +163,7 @@ def getLayout(name, back=2):
     return layout
 
 
-def tryToLoad(fullname):
+def tryToLoad(fullname: str):
     if(not os.path.exists(fullname)):
         return None
     f = open(fullname)
