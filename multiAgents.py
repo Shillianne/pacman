@@ -270,11 +270,12 @@ def betterEvaluationFunction(_, _2, currentGameState: GameState):
         if scaredTimer > 3:
             pass
         else:
-            if distfanstasma > 3:
-                score -= 500
+            if distfanstasma < 4:
+                score -= 700
             else:
                 score -= 3/(distfanstasma)
-    print(score)
+
+
     return score
 
 

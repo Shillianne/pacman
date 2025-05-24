@@ -143,7 +143,7 @@ class SearchAgent(MultiAgentSearchAgent):
             self.file_ending = "ordering"
         else: raise ValueError(f"Cannot handle the inputed combination: alphabeta = {self.alphabeta}, transposition = {self.transposition}, ordering = {self.move_ordering}")
 
-    
+    @profile
     def search(self,
                agentIndex: int,
                alpha: float,
