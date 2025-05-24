@@ -15,6 +15,7 @@ from typing import Callable
 import torch
 import numpy as np
 from net import PacmanNet
+from copy import copy
 import os
 from util import manhattanDistance
 from game import Directions, Grid
@@ -113,37 +114,46 @@ def providedEvaluationFunction(state: GameState):
     capsule_distance= min(manhattanDistance(pacman_pos, (x, y)) for x in range(capsules_matrix.width) for y in range(capsules_matrix.height) if capsules_matrix[x][y])
     positions = state.getGhostPositions()
     ghost_distance = min(manhattanDistance(pacman_pos, pos) for pos in positions)
-    scared_ghost_distance = 0
-    ghost_state = [(i, g_state.scaredTimer > 0) for i, g_state in enumerate(state.getGhostStates())]
+    #scared_ghost_distance = 0
+    #ghost_state = [(i, g_state.scaredTimer > 0) for i, g_state in enumerate(state.getGhostStates())]
     if True in [s[1] for s in ghost_state]:
         scared_ghost_distance = min(manhattanDistance(pacman_pos, positions[idx]) for idx, isScared in ghost_state if isScared)
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
 
-def customEvaluationFunction(state: GameState):
+def customEvaluationFunction(ghosts_heat_map:dict[tuple[int, int],np.ndarray], current_heat_map:np.ndarray, state:GameState):
+
+    # Taking object's coords 
     pacman_pos: tuple[int, int] = state.getPacmanPosition()
+    ghosts_pos: list[tuple[int, int]] = state.getGhostPositions()
+
+    # Obtaining food distribution
     food_layout = state.getFood()
     assert isinstance(food_layout, Grid), "Expected food layout to be a Grid object"
     if not isinstance(food_layout.data, np.ndarray):
         food = np.array(food_layout.data)
     else:
         food = food_layout.data
+    # Array modified by layout -> taking food indices
     idxs = np.where(food == 1)
-    out = vector_table[pacman_pos][idxs]
-    res = np.sum(out, axis=0) / np.sum(out)
-    h = np.sum(-(res + 1e-6) * np.log(res + 1e-6))
 
 
+    # Updating current_heat_map 
+    copied_heat_map = current_heat_map.copy()
+    for ghost in ghosts_pos:
+        copied_heat_map += ghosts_heat_map[tuple(map(int, ghost))]
+
+
+    # Pacman's index o
+
+
+    # Taking the global score
     score = state.getScore()
-    values = np.argmax(out, axis=1)
-    unique, counts = np.unique(values, return_counts=True)
-    d = dict(zip(unique, counts))
-    indexes = np.where(values == sorted(d.keys(), key=lambda x: -d[x])[0])
-    total_vector = np.sum(out[indexes], axis=0)
 
-    # pos_eval = score_table[pacman_pos[1]][pacman_pos[0]]
-    dist = min(manhattanDistance(pacman_pos, ghost_pos) for ghost_pos in state.getGhostPositions())
-    return score + (h * score) + dist * 5
 
+
+
+
+  
 class MultiAgentSearchAgent(Agent):
     """
     This class provides some common elements to all of your
