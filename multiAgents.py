@@ -142,7 +142,7 @@ def customEvaluationFunction(state: GameState):
 
     # pos_eval = score_table[pacman_pos[1]][pacman_pos[0]]
     dist = min(manhattanDistance(pacman_pos, ghost_pos) for ghost_pos in state.getGhostPositions())
-    return score + (h * score) + dist * 5
+    return score + (h * score) - (np.sqrt(np.sum(total_vector ** 2)) / 10)
 
 class MultiAgentSearchAgent(Agent):
     """
