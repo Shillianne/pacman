@@ -70,6 +70,7 @@ class Node:
         self.bestmove: str = ""
         self.eval: float = 0.0
         self.id = Node.id
+        self.transpositioned = False
         Node.id += 1
 
     def __repr__(self):
@@ -143,7 +144,7 @@ class SearchAgent(MultiAgentSearchAgent):
             self.file_ending = "ordering"
         else: raise ValueError(f"Cannot handle the inputed combination: alphabeta = {self.alphabeta}, transposition = {self.transposition}, ordering = {self.move_ordering}")
 
-    
+    @profile
     def search(self,
                agentIndex: int,
                alpha: float,
@@ -173,12 +174,12 @@ class SearchAgent(MultiAgentSearchAgent):
         if "Stop" in moves:
             moves.remove("Stop")
         if not moves:
-            return self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, self.state)
+            return self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, state)
         states = None
         if self.move_ordering:
             moves, states = order_moves(moves, state, agentIndex)
         next_agent = agentIndex + 1
-        best_move = None
+        best_move: Optional[str] = None
         best_eval = float("-inf") if agentIndex == 0 else float("inf")
 
         eval_bound = TranspositionTable.UPPER_BOUND
@@ -226,6 +227,7 @@ class SearchAgent(MultiAgentSearchAgent):
             if root is not None and node is not None:
                 # save the explored search tree
                 root.children.append(node)
+                assert best_move is not None
                 root.bestmove = best_move
                 root.eval = best_eval
 
