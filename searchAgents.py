@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from net import PacmanNet
 import os
-from util import manhattanDistance, nearestPoint
+from util import manhattanDistance, nearestPoint, heat_maps
 from game import Directions, GameStateData, Grid
 import random, util
 random.seed(42)  # For reproducibility
@@ -20,7 +20,7 @@ with open("vector_table.pickle", "rb") as pf:
     vector_table: dict[tuple[int, int], np.ndarray] = pickle.load(pf)
 
 
-def customEvaluationFunction(state: GameState):
+"""def customEvaluationFunction(state: GameState):
     pacman_pos: tuple[int, int] = state.getPacmanPosition()
     food_layout = state.getFood()
     assert isinstance(food_layout, Grid), "Expected food layout to be a Grid object"
@@ -33,7 +33,7 @@ def customEvaluationFunction(state: GameState):
     res = np.sum(out, axis=0) / np.sum(out)
     h = np.sum(-(res + 1e-6) * np.log(res + 1e-6))
     score = state.getScore()
-    return score + h * score
+    return score + h * score"""
 
 
 def order_moves(moves: list[str], state: GameState, agentIndex: int):
@@ -115,9 +115,11 @@ class SearchAgent(MultiAgentSearchAgent):
     def __init__(self, evalFn='customEvaluationFunction', depth=2,
                  alphabeta: bool | str = True,
                  transposition: bool | str = True,
-                 ordering: bool | str = True):
+                 ordering: bool | str = True,
+                 layout: str = "mediumClassic") :
         super().__init__(evalFn, str(depth))
         self.bestmove = ""
+        self.layout = layout
         self.best_eval: Optional[float] = None
         self.tree: Optional[Node] = None
         self.n_called = 0
@@ -127,7 +129,8 @@ class SearchAgent(MultiAgentSearchAgent):
         self.alphabeta = alphabeta if isinstance(alphabeta, bool) else alphabeta == "True"
         self.transposition = transposition if isinstance(transposition, bool) else transposition == "True"
         self.move_ordering =  ordering if isinstance(ordering, bool) else ordering == "True"
-        print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering}")
+        self.ghosts_heat_map, self.current_heat_map = heat_maps(self.layout)
+        print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering} on map {self.layout}")
         if not self.alphabeta and not self.transposition and not self.move_ordering:
             self.file_ending = "minimax"
         elif self.alphabeta and not self.transposition and not self.move_ordering:
@@ -153,7 +156,7 @@ class SearchAgent(MultiAgentSearchAgent):
         self.logger.debug(f"{'\t' * (self.ply - ply)}Current state hash: {key} | Current index: {agentIndex} | Current ply: {ply}")
         if state.isWin() or state.isLose() or ply == 0:
             self.logger.debug(f"{'\t' * (self.ply - ply)}Reached bottom of the search tree.")
-            eval = self.evaluationFunction(state)
+            eval = self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, state)
             if root is not None:
                 root.eval = eval
             return eval
@@ -170,7 +173,7 @@ class SearchAgent(MultiAgentSearchAgent):
         if "Stop" in moves:
             moves.remove("Stop")
         if not moves:
-            return self.evaluationFunction(state)
+            return self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, self.state)
         states = None
         if self.move_ordering:
             moves, states = order_moves(moves, state, agentIndex)

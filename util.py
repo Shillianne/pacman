@@ -30,8 +30,10 @@ import sys
 import inspect
 import heapq
 import random
+import numpy as np 
 import io
 from typing import Optional
+import pickle
 
 
 class FixedRandom:
@@ -867,3 +869,15 @@ def visualize_tree(root_node, labels: Optional[list[str]] = None, hash: Optional
     
     return fig
 
+
+def heat_maps(map_name: str) ->tuple[dict[tuple[int, ...], np.ndarray], np.ndarray]:
+    # Extracting the options for the ghost
+    with open("ghost_heat_map.pkl", 'rb') as file:
+        ghost_pos_dict = pickle.load(file)
+
+    # Extracting the global heat_map
+    with open("global_heat_map.pkl", 'rb') as file:
+        global_map = pickle.load(file)
+        picked_map = global_map[map_name]
+
+    return ghost_pos_dict[map_name], picked_map
