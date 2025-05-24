@@ -232,7 +232,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
 
-def betterEvaluationFunction(currentGameState: GameState):
+def betterEvaluationFunction(_, _2, currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
@@ -240,7 +240,47 @@ def betterEvaluationFunction(currentGameState: GameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+
+    #si gana o pierde devuelve inf o -inf
+    if currentGameState.isWin():
+        return 9999999999
+    if currentGameState.isLose():
+        return -9999999999
+    
+
+    #info de la partida
+    pacmanPos = currentGameState.getPacmanPosition()
+    foodList = currentGameState.getFood().asList()
+    ghostStates = currentGameState.getGhostStates()
+    capsules = currentGameState.getCapsules()
+    score = currentGameState.getScore()
+
+    #modifica el score en torno a la fruta
+    if foodList:
+        codidacreca= min([manhattanDistance(pacmanPos, foodPos) for foodPos in foodList])
+        score += 1.0/(codidacreca+ 1e-8)
+    score -= 1.5*len(foodList)
+
+
+    #funcion para fantasmas
+    for fantasma in ghostStates:
+        ghostPos = fantasma.getPosition()
+        scaredTimer = fantasma.scaredTimer
+        distfanstasma= manhattanDistance(pacmanPos, ghostPos)
+        if scaredTimer > 3:
+            pass
+        else:
+            if distfanstasma > 3:
+                score -= 500
+            else:
+                score -= 3/(distfanstasma)
+    print(score)
+    return score
+
+
+
+
+    
 
 # Abbreviation
 better = betterEvaluationFunction

@@ -112,7 +112,7 @@ class TranspositionTable:
 
 
 class SearchAgent(MultiAgentSearchAgent):
-    def __init__(self, evalFn='customEvaluationFunction', depth=2,
+    def __init__(self, evalFn='betterEvaluationFunction', depth=2,
                  alphabeta: bool | str = True,
                  transposition: bool | str = True,
                  ordering: bool | str = True,
@@ -228,8 +228,10 @@ class SearchAgent(MultiAgentSearchAgent):
                 root.children.append(node)
                 root.bestmove = best_move
                 root.eval = best_eval
-
-        assert best_move is not None, "Didn't find a move after performing search"
+        try:
+            assert best_move is not None, "Didn't find a move after performing search"
+        except AssertionError as e:
+            import code; code.interact(local=locals())
         if ply == self.ply:
             self.logger.debug(f"Exiting search having found bestmove: {best_move}")
             self.bestmove = best_move
