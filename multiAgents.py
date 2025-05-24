@@ -17,6 +17,7 @@ import numpy as np
 from net import PacmanNet
 from copy import copy
 import os
+import pacman
 from util import manhattanDistance
 from game import Directions, Grid
 import random, util
@@ -120,34 +121,25 @@ def providedEvaluationFunction(state: GameState):
         scared_ghost_distance = min(manhattanDistance(pacman_pos, positions[idx]) for idx, isScared in ghost_state if isScared)
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
 
-def customEvaluationFunction(ghosts_heat_map:dict[tuple[int, int],np.ndarray], current_heat_map:np.ndarray, state:GameState):
+
+def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, state: GameState):
 
     # Taking object's coords 
     pacman_pos: tuple[int, int] = state.getPacmanPosition()
     ghosts_pos: list[tuple[int, int]] = state.getGhostPositions()
-
-    # Obtaining food distribution
-    food_layout = state.getFood()
-    assert isinstance(food_layout, Grid), "Expected food layout to be a Grid object"
-    if not isinstance(food_layout.data, np.ndarray):
-        food = np.array(food_layout.data)
-    else:
-        food = food_layout.data
-    # Array modified by layout -> taking food indices
-    idxs = np.where(food == 1)
-
 
     # Updating current_heat_map 
     copied_heat_map = current_heat_map.copy()
     for ghost in ghosts_pos:
         copied_heat_map += ghosts_heat_map[tuple(map(int, ghost))]
 
-
     # Pacman's index o
-
+    pos_eval: int = copied_heat_map[pacman_pos]
 
     # Taking the global score
     score = state.getScore()
+
+    return score - pos_eval * 10
 
 
 
@@ -171,7 +163,7 @@ class MultiAgentSearchAgent(Agent):
 
     def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
         self.index = 0 # Pacman is always agent index 0
-        self.evaluationFunction: Callable[[GameState], float] = util.lookup(evalFn, globals())
+        self.evaluationFunction: Callable[[dict[tuple[int, ...], np.ndarray], np.ndarray, GameState], float] = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
 # class MinimaxAgent(MultiAgentSearchAgent):

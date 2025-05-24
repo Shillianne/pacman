@@ -870,8 +870,7 @@ def visualize_tree(root_node, labels: Optional[list[str]] = None, hash: Optional
     return fig
 
 
-def heat_maps(map_name:str) ->tuple[dict[tuple[int, int],np.ndarray], np.ndarray]:
-
+def heat_maps(map_name: str) ->tuple[dict[tuple[int, ...], np.ndarray], np.ndarray]:
     # Extracting the options for the ghost
     with open("ghost_heat_map.pkl", 'rb') as file:
         ghost_pos_dict = pickle.load(file)
@@ -881,8 +880,4 @@ def heat_maps(map_name:str) ->tuple[dict[tuple[int, int],np.ndarray], np.ndarray
         global_map = pickle.load(file)
         picked_map = global_map[map_name]
 
-    return ghost_pos_dict, picked_map
-
-
-
-
+    return ghost_pos_dict[map_name], picked_map
