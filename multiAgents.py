@@ -11,12 +11,14 @@
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
-from typing import Callable
+from typing import Callable, cast
 import torch
 import numpy as np
 from net import PacmanNet
 from copy import copy
 import os
+import pacman
+from pacman_types import Number
 from util import manhattanDistance
 from game import Directions, Grid
 import random, util
@@ -41,7 +43,7 @@ class ReflexAgent(Agent):
     """
 
 
-    def getAction(self, gameState: GameState):
+    def getAction(self, gameState: GameState):  # type: ignore  # this method will never be extended properly
         """
         You do not need to change this method, but you're welcome to.
 
@@ -114,46 +116,35 @@ def providedEvaluationFunction(state: GameState):
     capsule_distance= min(manhattanDistance(pacman_pos, (x, y)) for x in range(capsules_matrix.width) for y in range(capsules_matrix.height) if capsules_matrix[x][y])
     positions = state.getGhostPositions()
     ghost_distance = min(manhattanDistance(pacman_pos, pos) for pos in positions)
-    #scared_ghost_distance = 0
-    #ghost_state = [(i, g_state.scaredTimer > 0) for i, g_state in enumerate(state.getGhostStates())]
+    scared_ghost_distance = 0
+    ghost_state = [(i, g_state.scaredTimer > 0) for i, g_state in enumerate(state.getGhostStates())]
     if True in [s[1] for s in ghost_state]:
         scared_ghost_distance = min(manhattanDistance(pacman_pos, positions[idx]) for idx, isScared in ghost_state if isScared)
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
 
-def customEvaluationFunction(ghosts_heat_map:dict[tuple[int, int],np.ndarray], current_heat_map:np.ndarray, state:GameState):
+
+def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, state: GameState):
 
     # Taking object's coords 
-    pacman_pos: tuple[int, int] = state.getPacmanPosition()
-    ghosts_pos: list[tuple[int, int]] = state.getGhostPositions()
-
-    # Obtaining food distribution
-    food_layout = state.getFood()
-    assert isinstance(food_layout, Grid), "Expected food layout to be a Grid object"
-    if not isinstance(food_layout.data, np.ndarray):
-        food = np.array(food_layout.data)
-    else:
-        food = food_layout.data
-    # Array modified by layout -> taking food indices
-    idxs = np.where(food == 1)
-
+    pacman_pos: tuple[Number, Number] = state.getPacmanPosition()
+    pacman_pos = (int(pacman_pos[0]), int(pacman_pos[1]))
+    ghosts_pos: list[tuple[Number, Number]] = state.getGhostPositions()
+    ghosts_pos = [(int(ghost_pos[0]), int(ghost_pos[1])) for ghost_pos in ghosts_pos]
 
     # Updating current_heat_map 
     copied_heat_map = current_heat_map.copy()
     for ghost in ghosts_pos:
         copied_heat_map += ghosts_heat_map[tuple(map(int, ghost))]
 
-
     # Pacman's index o
-
+    pos_eval: int = copied_heat_map[pacman_pos]
 
     # Taking the global score
     score = state.getScore()
 
+    return score - pos_eval * 10
 
 
-
-
-  
 class MultiAgentSearchAgent(Agent):
     """
     This class provides some common elements to all of your
@@ -171,7 +162,7 @@ class MultiAgentSearchAgent(Agent):
 
     def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
         self.index = 0 # Pacman is always agent index 0
-        self.evaluationFunction: Callable[[GameState], float] = util.lookup(evalFn, globals())
+        self.evaluationFunction: Callable[[dict[tuple[int, ...], np.ndarray], np.ndarray, GameState], float] = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
 # class MinimaxAgent(MultiAgentSearchAgent):
@@ -222,7 +213,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       Your expectimax agent (question 4)
     """
 
-    def getAction(self, gameState: GameState):
+    def getAction(self, gameState: GameState):  # type: ignore  # this method will never be extended properly
         """
         Returns the expectimax action using self.depth and self.evaluationFunction
 
@@ -443,7 +434,7 @@ class NeuralAgent(Agent):
         
         return score + neural_score
 
-    def getAction(self, state):
+    def getAction(self, state: GameState):  # type: ignore  # this method will never be extended properly
         """
         Devuelve la mejor acción basada en la evaluación de la red neuronal
         y heurísticas adicionales.
@@ -538,7 +529,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             """
             # Base case: terminal state or maximum depth reached
             if gameState.isWin() or gameState.isLose() or depth == self.depth:
-                return self.evaluationFunction(gameState)
+                return self.evaluationFunction(gameState)  # type: ignore  # this class isn't used and the eval function is customized for another class
 
             # Pacman's turn (Maximizer)
             if agentIndex == 0:
@@ -557,7 +548,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             
             # No legal actions available
             if not legalActions:
-                return self.evaluationFunction(gameState)
+                return self.evaluationFunction(gameState)  # type: ignore  # this class isn't used and the eval function is customized for another class
 
             # Try each possible action and choose the best
             for action in legalActions:
@@ -576,7 +567,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             
             # No legal actions available
             if not legalActions:
-                return self.evaluationFunction(gameState)
+                return self.evaluationFunction(gameState)  # type: ignore  # this class isn't used and the eval function is customized for another class
 
             # Determine next agent and depth
             nextAgent = agentIndex + 1
@@ -615,7 +606,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     Minimax agent with alpha-beta pruning
     """
 
-    def getAction(self, gameState: GameState):
+    def getAction(self, gameState: GameState):  # type: ignore  # this method will never be extended properly
         """
         Returns the alpha-beta action using self.depth and self.evaluationFunction
         """
@@ -623,7 +614,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         def alphabeta(agentIndex, depth, gameState, alpha, beta):
             # Base case: Check if the game is over or if we've reached the maximum depth
             if gameState.isWin() or gameState.isLose() or depth == self.depth:
-                return self.evaluationFunction(gameState)
+                return self.evaluationFunction(gameState)  # type: ignore  # this class isn't used and the eval function is customized for another class
 
             # Pacman (maximizer) is agentIndex 0
             if agentIndex == 0:
@@ -639,7 +630,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             legalActions = gameState.getLegalActions(agentIndex)
 
             if not legalActions:
-                return self.evaluationFunction(gameState)
+                return self.evaluationFunction(gameState)  # type: ignore  # this class isn't used and the eval function is customized for another class
 
             # Iterate through all possible actions and update alpha-beta values
             for action in legalActions:
@@ -657,7 +648,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             legalActions = gameState.getLegalActions(agentIndex)
 
             if not legalActions:
-                return self.evaluationFunction(gameState)
+                return self.evaluationFunction(gameState)  # type: ignore  # this class isn't used and the eval function is customized for another class
 
             # Get the next agent's index and check if we need to increase depth
             nextAgent = agentIndex + 1

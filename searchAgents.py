@@ -70,6 +70,7 @@ class Node:
         self.bestmove: str = ""
         self.eval: float = 0.0
         self.id = Node.id
+        self.transpositioned = False
         Node.id += 1
 
     def __repr__(self):
@@ -130,7 +131,7 @@ class SearchAgent(MultiAgentSearchAgent):
         self.transposition = transposition if isinstance(transposition, bool) else transposition == "True"
         self.move_ordering =  ordering if isinstance(ordering, bool) else ordering == "True"
         self.ghosts_heat_map, self.current_heat_map = heat_maps(self.layout)
-        print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering}")
+        print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering} on map {self.layout}")
         if not self.alphabeta and not self.transposition and not self.move_ordering:
             self.file_ending = "minimax"
         elif self.alphabeta and not self.transposition and not self.move_ordering:
@@ -173,12 +174,12 @@ class SearchAgent(MultiAgentSearchAgent):
         if "Stop" in moves:
             moves.remove("Stop")
         if not moves:
-            return self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, self.state)
+            return self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, state)
         states = None
         if self.move_ordering:
             moves, states = order_moves(moves, state, agentIndex)
         next_agent = agentIndex + 1
-        best_move = None
+        best_move: Optional[str] = None
         best_eval = float("-inf") if agentIndex == 0 else float("inf")
 
         eval_bound = TranspositionTable.UPPER_BOUND
@@ -226,6 +227,7 @@ class SearchAgent(MultiAgentSearchAgent):
             if root is not None and node is not None:
                 # save the explored search tree
                 root.children.append(node)
+                assert best_move is not None
                 root.bestmove = best_move
                 root.eval = best_eval
         try:
