@@ -223,7 +223,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         "*** YOUR CODE HERE ***"
         util.raiseNotDefined()
 
-def betterEvaluationFunction(_, _2, currentGameState: GameState):
+def betterEvaluationFunction(ghosts_heat_map, current_heat_map, currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
@@ -231,6 +231,13 @@ def betterEvaluationFunction(_, _2, currentGameState: GameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
+    #pesos
+    peso_mapacalor=80.0
+    peso_fantasma=40.0
+    peso_comida=80.0
+
+
+
 
     #si gana o pierde devuelve inf o -inf
     if currentGameState.isWin():
@@ -246,26 +253,35 @@ def betterEvaluationFunction(_, _2, currentGameState: GameState):
     capsules = currentGameState.getCapsules()
     score = currentGameState.getScore()
 
+    #mapa de calor
+    pacman_x,pacman_y=pacmanPos
+    calor_pos_actual= current_heat_map[pacman_x][pacman_y]
+    # print("calor actual",calor_pos_actual)
+    score-=(calor_pos_actual+1)*10*peso_mapacalor
+
+
+
     #modifica el score en torno a la fruta
     if foodList:
         codidacreca= min([manhattanDistance(pacmanPos, foodPos) for foodPos in foodList])
-        score += 1.0/(codidacreca+ 1e-8)
-    score -= 1.5*len(foodList)
+        score += 1.0/(codidacreca+ 1e-8)*peso_comida
+    score -= 1.5*len(foodList)*peso_comida
 
 
     #funcion para fantasmas
     for fantasma in ghostStates:
         ghostPos = fantasma.getPosition()
+        calor_fantasma= ghosts_heat_map[int(ghostPos[0]), int(ghostPos[1])][pacman_x][pacman_y]
         scaredTimer = fantasma.scaredTimer
         distfanstasma= manhattanDistance(pacmanPos, ghostPos)
-        if scaredTimer > 3:
+        if scaredTimer > 20:
             pass
         else:
-            if distfanstasma < 4:
-                score -= 700
+            score -= calor_fantasma*(peso_mapacalor+1)*100
+            if distfanstasma < 6:
+                score -= 500*peso_fantasma
             else:
-                score -= 3/(distfanstasma)
-
+                score -= 3/(distfanstasma)*peso_fantasma
 
     return score
 
