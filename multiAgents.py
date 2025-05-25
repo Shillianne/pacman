@@ -232,9 +232,9 @@ def betterEvaluationFunction(ghosts_heat_map, current_heat_map, currentGameState
     """
     "*** YOUR CODE HERE ***"
     #pesos
-    peso_mapacalor=80.0
-    peso_fantasma=40.0
-    peso_comida=80.0
+    peso_mapacalor = 40.0
+    peso_fantasma = 50.8
+    peso_comida = 80.5
 
 
 
@@ -248,7 +248,7 @@ def betterEvaluationFunction(ghosts_heat_map, current_heat_map, currentGameState
 
     #info de la partida
     pacmanPos = currentGameState.getPacmanPosition()
-    foodList = currentGameState.getFood().asList()
+    foodList = currentGameState.getFood().asList() #type: ignore
     ghostStates = currentGameState.getGhostStates()
     capsules = currentGameState.getCapsules()
     score = currentGameState.getScore()
@@ -259,13 +259,11 @@ def betterEvaluationFunction(ghosts_heat_map, current_heat_map, currentGameState
     # print("calor actual",calor_pos_actual)
     score-=(calor_pos_actual+1)*10*peso_mapacalor
 
-
-
     #modifica el score en torno a la fruta
     if foodList:
         codidacreca= min([manhattanDistance(pacmanPos, foodPos) for foodPos in foodList])
-        score += 1.0/(codidacreca+ 1e-8)*peso_comida
-    score -= 1.5*len(foodList)*peso_comida
+        score += 10.0/(codidacreca+ 1e-8)*peso_comida
+    score -= 15*len(foodList)*peso_comida
 
 
     #funcion para fantasmas
@@ -274,14 +272,14 @@ def betterEvaluationFunction(ghosts_heat_map, current_heat_map, currentGameState
         calor_fantasma= ghosts_heat_map[int(ghostPos[0]), int(ghostPos[1])][pacman_x][pacman_y]
         scaredTimer = fantasma.scaredTimer
         distfanstasma= manhattanDistance(pacmanPos, ghostPos)
-        if scaredTimer > 20:
+        if scaredTimer > 4:
             pass
         else:
             score -= calor_fantasma*(peso_mapacalor+1)*100
-            if distfanstasma < 6:
-                score -= 500*peso_fantasma
+            if distfanstasma < 4:
+                score -= 700*peso_fantasma
             else:
-                score -= 3/(distfanstasma)*peso_fantasma
+                score -= 9/(distfanstasma)*peso_fantasma
 
     return score
 
