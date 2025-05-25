@@ -13,6 +13,7 @@
 
 from typing import Callable, cast
 import torch
+import math
 import numpy as np
 from net import PacmanNet
 from copy import copy
@@ -123,7 +124,7 @@ def providedEvaluationFunction(state: GameState):
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
 
 
-def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, state: GameState):
+def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food:list[int], state: GameState):
 
     # Taking object's coords 
     pacman_pos: tuple[Number, Number] = state.getPacmanPosition()
@@ -142,7 +143,32 @@ def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray],
     # Taking the global score
     score = state.getScore()
 
-    return score - pos_eval * 10
+    # Taking food-map
+    food_map = state.getFood().copy()
+    quadrants = util.divide_map(food_map)
+
+    # Decide where the fuck pacman is
+    where_is_pacman = util.where_am_i(pacman_pos, (food_map.height, food_map.width))
+
+    # Obtaining current food proportion per quadrant 
+    quadrant_food_proportion =  [np.sum(quadrants[i]) /original_food[i]for i in range(4)]
+    current_proportion = quadrant_food_proportion[where_is_pacman]
+
+
+    # Get centroids of the quadrants
+    centroids = util.get_centroids(quadrants,(food_map.height, food_map.width))
+
+    # Obtaning the nearest quadrant according to its centroid position 
+    nearest_quadrant, nearest_centroid = nearest_quadrant(pacman_pos, where_is_pacman, centroids)
+    
+
+    f_current = current_proportion/centroids[where_is_pacman]**2
+    f_nearest_centroid = 1/centroids[nearest_centroid]**2
+
+    # Puntuacion total | Heat Map | Densidad Cuadrante 
+
+
+    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid)
 
 
 class MultiAgentSearchAgent(Agent):

@@ -130,7 +130,9 @@ class SearchAgent(MultiAgentSearchAgent):
         self.alphabeta = alphabeta if isinstance(alphabeta, bool) else alphabeta == "True"
         self.transposition = transposition if isinstance(transposition, bool) else transposition == "True"
         self.move_ordering =  ordering if isinstance(ordering, bool) else ordering == "True"
-        self.ghosts_heat_map, self.current_heat_map = heat_maps(self.layout)
+        self.ghosts_heat_map, self.current_heat_map, self.original_food  = heat_maps(self.layout)
+        self.divided_layout = util.divide_map(self.current_heat_map)
+
         print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering} on map {self.layout}")
         if not self.alphabeta and not self.transposition and not self.move_ordering:
             self.file_ending = "minimax"
@@ -157,7 +159,7 @@ class SearchAgent(MultiAgentSearchAgent):
         self.logger.debug(f"{'\t' * (self.ply - ply)}Current state hash: {key} | Current index: {agentIndex} | Current ply: {ply}")
         if state.isWin() or state.isLose() or ply == 0:
             self.logger.debug(f"{'\t' * (self.ply - ply)}Reached bottom of the search tree.")
-            eval = self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, state)
+            eval = self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
             if root is not None:
                 root.eval = eval
             return eval
