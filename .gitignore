@@ -174,3 +174,4 @@ cython_debug/
 .pypirc
 pacman_data/
 logs/
+*.lprof

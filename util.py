@@ -780,8 +780,9 @@ def visualize_tree(root_node, labels: Optional[list[str]] = None, hash: Optional
         node_id = id(current_node)  # Use memory address as unique ID
         
         # Add node to graph
-        role_color = "blue" if current_node.role == "MAX" else "red"
-        role_color = role_color if not hasattr(current_node, "transpositioned") else "green"
+        role_color = "red" if current_node.role == "MAX" else "blue"
+        role_color = "green" if current_node.transpositioned else role_color
+        role_color = "yellow" if hasattr(current_node, 'prunned') else role_color
         if hash is not None and True in [current_node.hash == h for h in hash]:
             role_color = "purple"
         node_colors.append(role_color)
