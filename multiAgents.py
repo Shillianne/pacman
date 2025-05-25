@@ -145,6 +145,7 @@ def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray],
 
     # Taking food-map
     food_map = state.getFood().copy()
+    print(food_map)
     quadrants = util.divide_map(food_map)
 
     # Decide where the fuck pacman is
@@ -159,11 +160,11 @@ def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray],
     centroids = util.get_centroids(quadrants,(food_map.height, food_map.width))
 
     # Obtaning the nearest quadrant according to its centroid position 
-    nearest_quadrant, nearest_centroid = nearest_quadrant(pacman_pos, where_is_pacman, centroids)
+    nearest_quadrant, min_dist = util.nearest_quadrant(pacman_pos, where_is_pacman, centroids)
     
 
-    f_current = current_proportion/centroids[where_is_pacman]**2
-    f_nearest_centroid = 1/centroids[nearest_centroid]**2
+    f_current = current_proportion/util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2
+    f_nearest_centroid = 1/min_dist**2
 
     # Puntuacion total | Heat Map | Densidad Cuadrante 
 

@@ -132,7 +132,6 @@ class SearchAgent(MultiAgentSearchAgent):
         self.transposition = transposition if isinstance(transposition, bool) else transposition == "True"
         self.move_ordering =  ordering if isinstance(ordering, bool) else ordering == "True"
         self.ghosts_heat_map, self.current_heat_map, self.original_food  = heat_maps(self.layout)
-        self.divided_layout = util.divide_map(self.current_heat_map)
 
         print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering} on map {self.layout}")
         if not self.alphabeta and not self.transposition and not self.move_ordering:

@@ -911,7 +911,7 @@ def where_am_i(current_pos: tuple[int, int], dimensions:tuple[int, int]) -> int:
 
 
 
-def get_centroids(quadrants:list[np.ndarray], dimensions:tuple[int, int] ) ->list[tuple[float, float]]:
+def get_centroids(quadrants:list[np.ndarray], dimensions:tuple[int, int] ) ->list[np.ndarray]:
     
     # Initializing all the params
     centroids = []
@@ -930,7 +930,7 @@ def euclidean_distance(v1:tuple, v2: tuple) ->float:
     return np.sqrt((v1[0]- v2[0])**2 +(v1[1] - v2[1])**2)
     
 
-def nearest_quadrant(current_pos, quadrant:int, values:list[tuple[float, float]]) -> int:
+def nearest_quadrant(current_pos, quadrant:int, values:list[tuple[float, float]]) -> tuple[int, float]:
 
     min_dist = math.inf
     min_quad = -1
