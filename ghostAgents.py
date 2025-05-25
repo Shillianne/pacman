@@ -16,6 +16,7 @@ from game import Agent
 from game import Actions
 from game import Directions
 import random
+from pacman_types import GameStateDataProtocol
 from util import manhattanDistance
 import util
 import random
@@ -25,9 +26,9 @@ class GhostAgent(Agent):
     def __init__(self, index):
         self.index = index
 
-    def getAction(self, state):
+    def getAction(self, state: GameStateDataProtocol):  # type: ignore  # this condition is never going to be met since SOMEONE decided to return None in the parent class
         dist = self.getDistribution(state)
-        if len(dist) == 0:
+        if len(dist) == 0:  # type: ignore  # since SOMEONE defided to return None in the above function, not only is this always going to give an error, but every child class will have an error as well
             return Directions.STOP
         else:
             return util.chooseFromDistribution(dist)
@@ -40,7 +41,7 @@ class GhostAgent(Agent):
 class RandomGhost(GhostAgent):
     "A ghost that chooses a legal action uniformly at random."
 
-    def getDistribution(self, state):
+    def getDistribution(self, state):  # type: ignore  # as explained above, parent class defined a return type that contradicts this one, so it will always give an error
         dist = util.Counter()
         for a in state.getLegalActions(self.index):
             dist[a] = 1.0
@@ -56,7 +57,7 @@ class DirectionalGhost(GhostAgent):
         self.prob_attack = prob_attack
         self.prob_scaredFlee = prob_scaredFlee
 
-    def getDistribution(self, state):
+    def getDistribution(self, state):  # type: ignore  # as explained above, parent class defined a return type that contradicts this one, so it will always give an error
         # Read variables from state
         ghostState = state.getGhostState(self.index)
         legalActions = state.getLegalActions(self.index)

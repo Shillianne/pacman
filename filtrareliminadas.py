@@ -1,5 +1,6 @@
 import os
 import subprocess
+
 """def iswin(a):
     if "Loss" in a[8]:
         return False

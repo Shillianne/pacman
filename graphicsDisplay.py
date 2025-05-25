@@ -16,6 +16,7 @@ from graphicsUtils import *
 import math
 import time
 from game import Directions
+from pacman_types import GameStateDataProtocol
 
 ###########################
 #  GRAPHICS DISPLAY CODE  #
@@ -130,7 +131,7 @@ class InfoPane:
         if isBlue:
             text = "BLUE TEAM"
         self.teamText = text(self.toScreen(
-            300, 0), self.textColor, text, "Times", self.fontSize, "bold")
+            300, 0), self.textColor, text, "Times", self.fontSize, "bold")  # type: ignore  # I don't even know what kind of d- person would do this
 
     def updateGhostDistances(self, distances):
         if len(distances) == 0:
@@ -194,11 +195,11 @@ class PacmanGraphics:
         self.infoPane = InfoPane(layout, self.gridSize)
         self.currentState = layout
 
-    def drawDistributions(self, state):
+    def drawDistributions(self, state: GameStateDataProtocol):
         walls = state.layout.walls
-        dist = []
+        dist: list[list[int]] = []
         for x in range(walls.width):
-            distx = []
+            distx: list[int] = []
             dist.append(distx)
             for y in range(walls.height):
                 (screen_x, screen_y) = self.to_screen((x, y))
