@@ -13,16 +13,18 @@
 
 from typing import Callable, cast
 import torch
+import math
 import numpy as np
 from net import PacmanNet
 from copy import copy
 import os
 import pacman
-from pacman_types import Number
+from pacman_types import Number, Seed
 from util import manhattanDistance
 from game import Directions, Grid
 import random, util
-random.seed(42)  # For reproducibility
+# random.seed(42)  # For reproducibility
+random.seed(Seed.get_value())
 from game import Agent
 from pacman import GameState
 from line_profiler import profile
@@ -123,7 +125,7 @@ def providedEvaluationFunction(state: GameState):
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
 
 
-def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, state: GameState):
+def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food:list[int], state: GameState):
 
     # Taking object's coords 
     pacman_pos: tuple[Number, Number] = state.getPacmanPosition()
@@ -142,7 +144,32 @@ def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray],
     # Taking the global score
     score = state.getScore()
 
-    return score - pos_eval * 10
+    # Taking food-map
+    food_map = state.getFood().copy()
+    quadrants = util.divide_map(food_map)
+
+    # Decide where the fuck pacman is
+    where_is_pacman = util.where_am_i(pacman_pos, (food_map.height, food_map.width))
+
+    # Obtaining current food proportion per quadrant 
+    quadrant_food_proportion =  [np.sum(quadrants[i]) /original_food[i]for i in range(4)]
+    current_proportion = quadrant_food_proportion[where_is_pacman]
+
+
+    # Get centroids of the quadrants
+    centroids = util.get_centroids(quadrants,(food_map.height, food_map.width))
+
+    # Obtaning the nearest quadrant according to its centroid position 
+    nearest_quadrant, min_dist = util.nearest_quadrant(pacman_pos, where_is_pacman, centroids)
+    
+
+    f_current = current_proportion/util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2
+    f_nearest_centroid = 1/min_dist**2
+
+    # Puntuacion total | Heat Map | Densidad Cuadrante 
+
+
+    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid)
 
 
 class MultiAgentSearchAgent(Agent):
@@ -162,7 +189,7 @@ class MultiAgentSearchAgent(Agent):
 
     def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
         self.index = 0 # Pacman is always agent index 0
-        self.evaluationFunction: Callable[[dict[tuple[int, ...], np.ndarray], np.ndarray, GameState], float] = util.lookup(evalFn, globals())
+        self.evaluationFunction: Callable[[dict[tuple[int, ...], np.ndarray], np.ndarray, list[int], GameState], float] = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
 # class MinimaxAgent(MultiAgentSearchAgent):

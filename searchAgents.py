@@ -2,10 +2,12 @@ import torch
 import numpy as np
 from net import PacmanNet
 import os
+from pacman_types import Seed
 from util import manhattanDistance, nearestPoint, heat_maps
-from game import Directions, GameStateData, Grid
+from game import Directions, Game, GameStateData, Grid
 import random, util
-random.seed(42)  # For reproducibility
+# random.seed(42)  # For reproducibility
+random.seed(Seed.get_value())
 from game import Agent
 from pacman import GameState
 from multiAgents import MultiAgentSearchAgent
@@ -13,27 +15,15 @@ from typing import Optional
 from line_profiler import profile
 import pickle
 import logging
-logging.basicConfig(filename="logs/log_trans.log", level=logging.DEBUG)
+logging.basicConfig(filename="logs/log_trans.log", level=logging.ERROR)
 
 
 with open("vector_table.pickle", "rb") as pf:
     vector_table: dict[tuple[int, int], np.ndarray] = pickle.load(pf)
 
 
-"""def customEvaluationFunction(state: GameState):
-    pacman_pos: tuple[int, int] = state.getPacmanPosition()
-    food_layout = state.getFood()
-    assert isinstance(food_layout, Grid), "Expected food layout to be a Grid object"
-    if not isinstance(food_layout.data, np.ndarray):
-        food = np.array(food_layout.data)
-    else:
-        food = food_layout.data
-    idxs = np.where(food == 1)
-    out = vector_table[pacman_pos][idxs]
-    res = np.sum(out, axis=0) / np.sum(out)
-    h = np.sum(-(res + 1e-6) * np.log(res + 1e-6))
-    score = state.getScore()
-    return score + h * score"""
+def custom_hash(state: GameState) -> int:
+    return (hash(tuple(state.data.agentStates)) + 13*hash(state.data.food) + 113 * hash(tuple(state.data.capsules)) + 7 * hash(state.data.score))
 
 
 def order_moves(moves: list[str], state: GameState, agentIndex: int):
@@ -94,15 +84,19 @@ class TranspositionTable:
     UPPER_BOUND = 2
     def __init__(self):
         self.table: dict[int, Entry] = {}
+        # self.table: dict[tuple[int, int], Entry] = {}
         
-    def store_evaluation(self, state: GameState, ply: int, eval: float, eval_type: int, move: str):
-        h = hash(state)
-        self.table[h] = Entry(eval, eval_type, ply, h, move)
+    def store_evaluation(self, key: int, ply: int, eval: float, eval_type: int, move: str):
+        if key in self.table.keys():
+            entry = self.table[key]
+            if entry.depth < ply:
+                self.table[key] = Entry(eval, eval_type, ply, key, move)
+        else:
+            self.table[key] = Entry(eval, eval_type, ply, key, move)
 
-    def lookup_evaluation(self, state: GameState, ply: int, alpha: float, beta: float):
-        h = hash(state)
-        if h in self.table.keys():
-            entry = self.table[h]
+    def lookup_evaluation(self, key: int, ply: int, alpha: float, beta: float):
+        if key in self.table.keys():
+            entry = self.table[key]
             if entry.depth >= ply:
                 if entry.eval_type == TranspositionTable.EXACT:
                     return entry.eval
@@ -131,7 +125,9 @@ class SearchAgent(MultiAgentSearchAgent):
         self.alphabeta = alphabeta if isinstance(alphabeta, bool) else alphabeta == "True"
         self.transposition = transposition if isinstance(transposition, bool) else transposition == "True"
         self.move_ordering =  ordering if isinstance(ordering, bool) else ordering == "True"
-        self.ghosts_heat_map, self.current_heat_map = heat_maps(self.layout)
+        self.ghosts_heat_map, self.current_heat_map, self.original_food  = heat_maps(self.layout)
+        self.save = False
+
         print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering} on map {self.layout}")
         if not self.alphabeta and not self.transposition and not self.move_ordering:
             self.file_ending = "minimax"
@@ -155,14 +151,15 @@ class SearchAgent(MultiAgentSearchAgent):
                ply: int,
                state: GameState,
                root: Optional[Node] = None) -> float:
-        key = hash(state)
+        # key = hash(state)
+        key = custom_hash(state)
         if root is not None:
             root.alphabeta_history.append((alpha, beta))
 
         self.logger.debug(f"{'\t' * (self.ply - ply)}Current state hash: {key} | Current index: {agentIndex} | Current ply: {ply}")
         if state.isWin() or state.isLose() or ply == 0:
             self.logger.debug(f"{'\t' * (self.ply - ply)}Reached bottom of the search tree.")
-            eval = self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, state)
+            eval = self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
             if root is not None:
                 root.eval = eval
                 root.alpha = alpha
@@ -170,7 +167,7 @@ class SearchAgent(MultiAgentSearchAgent):
             return eval
 
         if self.transposition:
-            possible_eval = self.transpositionTable.lookup_evaluation(state, ply, alpha, beta)
+            possible_eval = self.transpositionTable.lookup_evaluation(key, ply, alpha, beta)
             if possible_eval != TranspositionTable.LOOKUP_FAILED:
                 if root is not None:
                     root.transpositioned = True
@@ -181,7 +178,7 @@ class SearchAgent(MultiAgentSearchAgent):
         if "Stop" in moves:
             moves.remove("Stop")
         if not moves:
-            return self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, state)
+            return self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
         states = None
         if self.move_ordering:
             moves, states = order_moves(moves, state, agentIndex)
@@ -189,7 +186,9 @@ class SearchAgent(MultiAgentSearchAgent):
         best_move: Optional[str] = None
         best_eval = float("-inf") if agentIndex == 0 else float("inf")
 
-        eval_bound = TranspositionTable.UPPER_BOUND
+        # eval_bound = TranspositionTable.UPPER_BOUND
+        o_alpha = alpha
+        o_beta = beta
 
         self.logger.debug(f"{'\t' * (self.ply - ply)}Starting move search for state {key} and index {agentIndex}")
         for i, move in enumerate(moves):
@@ -198,7 +197,7 @@ class SearchAgent(MultiAgentSearchAgent):
                 successor = states[i]
             else:
                 successor = state.generateSuccessor(agentIndex, move)
-            s_key = hash(successor)
+            s_key = custom_hash(successor)
             node = Node(move, s_key, successor.data, 0 if next_agent == state.getNumAgents() else next_agent, alpha, beta, self.identifier + 1) if root is not None else None
             self.identifier += 1
             self.logger.debug(f"{'\t' * (self.ply - ply)}Performing search for state {s_key} associated to move {move} and index {agentIndex}.")
@@ -217,15 +216,15 @@ class SearchAgent(MultiAgentSearchAgent):
                     self.logger.debug(f"{'\t' * (self.ply - ply)}New best move for state {key}, index {agentIndex}, ply {ply}: {move}")
                     best_eval = eval
                     best_move = move
-                    eval_bound = TranspositionTable.EXACT
-                    alpha = best_eval
+                    # eval_bound = TranspositionTable.EXACT
+                    alpha = max(alpha, eval)
             else:
                 if eval < best_eval:
                     self.logger.debug(f"{'\t' * (self.ply - ply)}New best move for state {key}, index {agentIndex}, ply {ply}: {move}")
                     best_eval = eval
                     best_move = move
-                    eval_bound = TranspositionTable.EXACT
-                    beta = best_eval
+                    # eval_bound = TranspositionTable.EXACT
+                    beta = min(beta, eval)
             # if eval == 71 or self.condition_met:
             #     self.condition_met = True
             #     import code; code.interact(local=locals())
@@ -235,15 +234,22 @@ class SearchAgent(MultiAgentSearchAgent):
             if root is not None:
                 root.alphabeta_history.append((alpha, beta))
             if self.alphabeta and beta <= alpha:
-                    if self.transposition:
-                        self.transpositionTable.store_evaluation(state, ply, beta, TranspositionTable.LOWER_BOUND, move)
+                    # if self.transposition:
+                    #     self.transpositionTable.store_evaluation(s_key, ply, beta, TranspositionTable.LOWER_BOUND, move)
                     self.logger.debug(f"{'\t' * (self.ply - ply)}Prunning on state {key}, for index {agentIndex}, ply {ply}: ({alpha}, {beta})")
+                    assert best_move is not None
+                    if self.transposition:
+                        if agentIndex == 0:  # Maximizing player - we have a lower bound
+                            self.transpositionTable.store_evaluation(key, ply, best_eval, TranspositionTable.UPPER_BOUND, best_move)
+                        else:  # Minimizing player - we have an upper bound
+                            self.transpositionTable.store_evaluation(key, ply, best_eval, TranspositionTable.LOWER_BOUND, best_move)
                     if node is not None and root is not None:
                         # node.prunned = True
                         # root.children.append(node)
                         root.eval = beta if agentIndex == 0 else alpha
                     # if this happens, it means we found a move too good, so the oponnent will reject it for a better move for them
-                    return beta if agentIndex == 0 else alpha  # this is like saying: "Yeah, I got nothing better for me, so may as well say that I have nothing"
+                    # return beta if agentIndex == 0 else alpha  # this is like saying: "Yeah, I got nothing better for me, so may as well say that I have nothing"
+                    return best_eval
 
             if root is not None and node is not None:
                 # save the explored search tree
@@ -257,16 +263,29 @@ class SearchAgent(MultiAgentSearchAgent):
             self.logger.debug(f"Exiting search having found bestmove: {best_move}")
             self.bestmove = best_move
 
+        # if self.transposition:
+        #     self.transpositionTable.store_evaluation(key, ply, best_eval, eval_bound, best_move)
         if self.transposition:
-            self.transpositionTable.store_evaluation(state, ply, best_eval, eval_bound, best_move)
+            if best_eval <= o_alpha:
+                # All moves were worse than alpha - upper bound
+                eval_bound = TranspositionTable.LOWER_BOUND
+            elif best_eval > o_beta:
+                # At least one move was better than beta - lower bound
+                eval_bound = TranspositionTable.UPPER_BOUND
+            else: 
+                # Exact value
+                eval_bound = TranspositionTable.EXACT
+            self.transpositionTable.store_evaluation(key, ply, best_eval, eval_bound, best_move)
 
         return best_eval
 
     @profile
     def getAction(self, state: GameState):
-        root = Node("root", hash(state), state.data, 0, float("-inf"), float("inf"), -1)
+        root = Node("root", custom_hash(state), state.data, 0, float("-inf"), float("inf"), 0)
         # root = None
         self.logger.info("Starting search")
+        # print(self.n_called)
+        # import code; code.interact(local=locals())
         eval = self.search(0, float("-inf"), float("inf"), self.ply, state, root)
         self.logger.info("Search finished")
         self.best_eval = eval
@@ -275,3 +294,9 @@ class SearchAgent(MultiAgentSearchAgent):
                 pickle.dump(root, pf)
             self.n_called += 1
         return self.bestmove
+
+    def final(self, state: GameState):
+        if self.save and (state.isWin() or state.isLose()):
+            with open("transposition_table.pickle", "wb") as pf:
+                pickle.dump(self.transpositionTable, pf)
+            print("Saved transposition table")

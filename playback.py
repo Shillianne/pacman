@@ -5,6 +5,8 @@ import random
 from game import Directions
 import json
 from datetime import datetime
+
+from pacman_types import Seed
 class CSVPlaybackAgent(Agent):
     """
     Un agente que reproduce un juego desde datos guardados en CSV
@@ -16,7 +18,8 @@ class CSVPlaybackAgent(Agent):
         self.current_step = 0
         self.maps = []  # Guardar los mapas para visualización/depuración
         self.load_actions_from_csv(csv_file_path)
-        random.seed(42)  # Para reproducibilidad
+        # random.seed(42)  # Para reproducibilidad
+        random.seed(Seed.get_value())
     
     def load_actions_from_csv(self, csv_file_path):
         print(f"Cargando acciones desde: {csv_file_path}")

@@ -12,9 +12,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+
+from pacman_types import Seed
 # Fijamos todas las semillas para reproducibilidad
-torch.manual_seed(42)
-random.seed(42)
+# torch.manual_seed(42)
+# random.seed(42)
+torch.manual_seed(Seed.get_value())
+random.seed(Seed.get_value())
 # Constantes
 INPUT_SIZE = None  # Se determinará en tiempo de ejecución basado en el tamaño del mapa
 HIDDEN_SIZE = 128

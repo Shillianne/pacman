@@ -16,11 +16,12 @@ from game import Agent
 from game import Actions
 from game import Directions
 import random
-from pacman_types import GameStateDataProtocol
+from pacman_types import GameStateDataProtocol, Seed
 from util import manhattanDistance
 import util
 import random
-random.seed(42)  # For reproducibility
+# random.seed(42)  # For reproducibility
+random.seed(Seed.get_value())
 
 class GhostAgent(Agent):
     def __init__(self, index):

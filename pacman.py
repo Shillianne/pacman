@@ -39,11 +39,12 @@ code to run a game.  This file is divided into three sections:
 To play your first game, type 'python pacman.py' from the command line.
 The keys are 'a', 's', 'd', and 'w' to move (or arrow keys).  Have fun!
 """
+from typing import Optional
 from game import Agent, GameStateData
 from game import Game
 from game import Directions
 from game import Actions
-from pacman_types import AgentStateProtocol, GameProtocol, GameStateProtocol, Number
+from pacman_types import AgentStateProtocol, GameProtocol, GameStateProtocol, Number, Seed
 from util import nearestPoint
 from util import manhattanDistance
 import util
@@ -598,6 +599,11 @@ def readCommand(argv):
                       help='CSV file path to replay game actions', 
 
                       default=None)
+    parser.add_option("--seed", dest="seed", type="int", help="The seed to be used", default=42)
+    parser.add_option('-s', "--randomizeSeed", dest="randomizeSeed", action="store_true",
+                      help="Randomizes the seed used for every game played.", default=False)
+    parser.add_option('-d', '--dir', type="str", dest="dir",
+                      help="The output directory for the played games", default="pacman_data")
 
     # parseamos los argumentos
 
@@ -617,7 +623,12 @@ def readCommand(argv):
     args = dict()
 
     # Fix the random seed
-    random.seed(42)
+    if options.randomizeSeed:
+        random.seed(42)
+        Seed.set_seed(random.randint(0, 4196))
+    else:
+        Seed.set_seed(options.seed)
+    random.seed(Seed.get_value())
 
     # Choose a layout
     args['layout'] = layout.getLayout(options.layout)
@@ -675,6 +686,9 @@ def readCommand(argv):
     args['catchExceptions'] = options.catchExceptions
     args['timeout'] = options.timeout
     args['replay_mode'] = replay_mode
+    args['seed'] = options.seed
+    args['randomizeSeed'] = options.randomizeSeed
+    args['dir'] = options.dir
 
     # Special case: recorded games don't use the runGames method or args structure
     if options.gameToReplay != None:
@@ -741,7 +755,7 @@ def replayGame(layout, actions, display):
     display.finish()
 
 
-def runGames(layout, pacman: Agent, ghosts: list[Agent], display, numGames, record, numTraining=0, catchExceptions=False, timeout=30, replay_mode=False):
+def runGames(layout, pacman: Agent, ghosts: list[Agent], display, numGames, record, numTraining=0, catchExceptions=False, timeout=30, replay_mode=False, **kwargs):
     import __main__
     __main__.__dict__['_display'] = display
 
@@ -754,16 +768,16 @@ def runGames(layout, pacman: Agent, ghosts: list[Agent], display, numGames, reco
 
     print("Reply mode:", replay_mode)
 
-    data_collector = gamedata.GameDataCollector(replay_mode=replay_mode)
+    data_collector = gamedata.GameDataCollector(output_dir=kwargs['dir'], replay_mode=replay_mode)
 
     # Fijar semilla consistente
+    # seed = Seed.get_value()  # o cualquier valor fijo
 
-    seed = '42'  # o cualquier valor fijo
-
-    random.seed(seed)
     import time
     ###################################################
     for i in range(numGames):
+        print("Playing with seed", Seed.get_value())
+        random.seed(Seed.get_value())
         start = time.time()
         beQuiet = i < numTraining
         if beQuiet:
@@ -802,6 +816,8 @@ def runGames(layout, pacman: Agent, ghosts: list[Agent], display, numGames, reco
             f.close()
         end = time.time()
         print(f"Time elapsed for game {i}: {end - start} s")
+        if kwargs['randomizeSeed']:
+            Seed.set_seed(random.randint(0, 4196))
 
     if (numGames-numTraining) > 0:
         scores = [game.state.getScore() for game in games]

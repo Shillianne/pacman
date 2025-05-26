@@ -31,9 +31,11 @@ import inspect
 import heapq
 import random
 import numpy as np 
+import math
 import io
 from typing import Optional
 import pickle
+from pacman_types import GridProtocol
 
 
 class FixedRandom:
@@ -871,14 +873,75 @@ def visualize_tree(root_node, labels: Optional[list[str]] = None, hash: Optional
     return fig
 
 
-def heat_maps(map_name: str) ->tuple[dict[tuple[int, ...], np.ndarray], np.ndarray]:
+def heat_maps(map_name: str) ->tuple[dict[tuple[int, ...], np.ndarray], np.ndarray, list[int]]:
     # Extracting the options for the ghost
     with open("ghost_heat_map.pkl", 'rb') as file:
         ghost_pos_dict = pickle.load(file)
 
-    # Extracting the global heat_map
+    # Extracting the global heat_map and the original food per quadrant
     with open("global_heat_map.pkl", 'rb') as file:
         global_map = pickle.load(file)
-        picked_map = global_map[map_name]
+        picked_map, food_per_quadrant = global_map[map_name]
 
-    return ghost_pos_dict[map_name], picked_map
+
+    return ghost_pos_dict[map_name], picked_map, food_per_quadrant
+
+
+def divide_map(map_to_divide:GridProtocol) -> list[np.ndarray]:
+    h1 = math.ceil(map_to_divide.height/2)
+    w1 = math.ceil(map_to_divide.width/2)
+    food_array = np.array(map_to_divide.data)
+    return [food_array[:h1,:w1], food_array[h1:,:w1], food_array[h1:,w1:], food_array[:h1,w1:]]
+
+
+def where_am_i(current_pos: tuple[int, int], dimensions:tuple[int, int]) -> int:
+
+    which_quadrant = 0
+    h1, w1 = dimensions
+    if current_pos[0] < h1 and  current_pos[1] < w1: 
+        which_quadrant = 1
+    elif current_pos[0] >= h1 and current_pos[1] < w1:
+        which_quadrant = 2
+    elif current_pos[0] >= h1 and current_pos[1] >= w1:
+        which_quadrant = 3
+    else:
+        which_quadrant = 4
+
+    return which_quadrant -1
+
+
+
+def get_centroids(quadrants:list[np.ndarray], dimensions:tuple[int, int] ) ->list[np.ndarray]:
+    
+    # Initializing all the params
+    centroids = []
+    h1, w1 = dimensions
+    normalize_axis = [(0,0),(h1,0), (h1, w1),(0, w1)]
+
+    # Just taking centroids 
+    for index, quadrant in enumerate(quadrants):
+        centroid  = np.sum(np.where(quadrant==1), axis = 1)/(quadrant.shape[0]*quadrant.shape[1])
+        centroids.append(centroid + normalize_axis[index])
+
+    return centroids
+
+
+def euclidean_distance(v1:tuple, v2: tuple) ->float:
+    return np.sqrt((v1[0]- v2[0])**2 +(v1[1] - v2[1])**2)
+    
+
+def nearest_quadrant(current_pos, quadrant:int, values:list[tuple[float, float]]) -> tuple[int, float]:
+
+    min_dist = math.inf
+    min_quad = -1
+
+    for index, pair in enumerate(values):
+        if index!=quadrant:
+            module = euclidean_distance(current_pos, pair) 
+            if module < min_dist:
+                min_dist = module
+                min_quad = index
+    
+    return min_quad, min_dist
+
+
