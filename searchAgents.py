@@ -115,6 +115,7 @@ class SearchAgent(MultiAgentSearchAgent):
                  layout: str = "mediumClassic") :
         super().__init__(evalFn, str(depth))
         self.bestmove = ""
+        self.list_of_moves:list = []
         self.layout = layout
         self.best_eval: Optional[float] = None
         self.tree: Optional[Node] = None
@@ -150,7 +151,12 @@ class SearchAgent(MultiAgentSearchAgent):
                beta: float,
                ply: int,
                state: GameState,
+               list_of_moves:list,
                root: Optional[Node] = None) -> float:
+        
+        # Creating a copy from the list of moves
+        copy_list_of_moves = list_of_moves.copy() 
+
         # key = hash(state)
         key = custom_hash(state)
         if root is not None:
@@ -159,7 +165,8 @@ class SearchAgent(MultiAgentSearchAgent):
         self.logger.debug(f"{'\t' * (self.ply - ply)}Current state hash: {key} | Current index: {agentIndex} | Current ply: {ply}")
         if state.isWin() or state.isLose() or ply == 0:
             self.logger.debug(f"{'\t' * (self.ply - ply)}Reached bottom of the search tree.")
-            eval = self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
+            # Carlos
+            eval = self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
             if root is not None:
                 root.eval = eval
                 root.alpha = alpha
@@ -178,7 +185,7 @@ class SearchAgent(MultiAgentSearchAgent):
         if "Stop" in moves:
             moves.remove("Stop")
         if not moves:
-            return self.evaluationFunction(self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
+            return self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
         states = None
         if self.move_ordering:
             moves, states = order_moves(moves, state, agentIndex)
@@ -201,15 +208,21 @@ class SearchAgent(MultiAgentSearchAgent):
             node = Node(move, s_key, successor.data, 0 if next_agent == state.getNumAgents() else next_agent, alpha, beta, self.identifier + 1) if root is not None else None
             self.identifier += 1
             self.logger.debug(f"{'\t' * (self.ply - ply)}Performing search for state {s_key} associated to move {move} and index {agentIndex}.")
+            if(len(copy_list_of_moves)) == 4:
+                copy_list_of_moves = copy_list_of_moves[1:] + [move]
+            else:
+                list_of_moves.append(move)
             if agentIndex == 0:  # playing as pacman
-                eval: float = self.search(agentIndex + 1, alpha, beta, ply - 1, successor, node)
+                eval: float = self.search(agentIndex + 1, alpha, beta, ply - 1, successor, copy_list_of_moves, node)
             else:  # playing as a ghost
                 eval: float = self.search(0 if next_agent == state.getNumAgents() else next_agent,
                                           alpha,
                                           beta,
                                           ply - 1,
                                           successor,
-                                          node)
+                                          copy_list_of_moves, 
+                                          node,
+                                          )
             # print(eval, best_eval)
             if agentIndex == 0:
                 if eval > best_eval:
@@ -286,13 +299,17 @@ class SearchAgent(MultiAgentSearchAgent):
         self.logger.info("Starting search")
         # print(self.n_called)
         # import code; code.interact(local=locals())
-        eval = self.search(0, float("-inf"), float("inf"), self.ply, state, root)
+        eval = self.search(0, float("-inf"), float("inf"), self.ply, state, self.list_of_moves, root )
         self.logger.info("Search finished")
         self.best_eval = eval
         if root is not None:
             with open(f"logs/tree_{self.n_called}_{self.file_ending}.pickle", "wb") as pf:
                 pickle.dump(root, pf)
             self.n_called += 1
+        if len(self.list_of_moves) == 4:
+            self.list_of_moves = self.list_of_moves[1:] + [self.bestmove]
+        else:
+            self.list_of_moves.append(self.bestmove)
         return self.bestmove
 
     def final(self, state: GameState):
