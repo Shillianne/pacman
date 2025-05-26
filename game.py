@@ -20,7 +20,7 @@
 # John DeNero (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
 
-from pacman_types import AgentStateProtocol, ConfigurationProtocol, GridProtocol, LayoutProtocol, Number, GameStateProtocol, Value
+from pacman_types import AgentStateProtocol, ConfigurationProtocol, GridProtocol, LayoutProtocol, Number, GameStateProtocol, Seed, Value
 from util import *
 import time
 import os
@@ -41,7 +41,8 @@ from line_profiler import profile
 import numpy as np
 import pickle
 from typing import Any, Self, Union
-random.seed(42) # Para reproducibilidad de los resultados
+# random.seed(42) # Para reproducibilidad de los resultados
+random.seed(Seed.get_value())
 ###################################################
 
 with open("layout_data.pickle", "rb") as pf:

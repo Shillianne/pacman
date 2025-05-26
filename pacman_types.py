@@ -97,3 +97,15 @@ class AgentStateProtocol(Protocol):
 
     def getPosition(self) -> tuple[Number, Number]:
         ...
+
+
+class Seed:
+    value: int = 42
+
+    @classmethod
+    def set_seed(cls, value: int):
+        Seed.value = value
+
+    @classmethod
+    def get_value(cls):
+        return Seed.value

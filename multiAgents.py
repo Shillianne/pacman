@@ -19,11 +19,12 @@ from net import PacmanNet
 from copy import copy
 import os
 import pacman
-from pacman_types import Number
+from pacman_types import Number, Seed
 from util import manhattanDistance
 from game import Directions, Grid
 import random, util
-random.seed(42)  # For reproducibility
+# random.seed(42)  # For reproducibility
+random.seed(Seed.get_value())
 from game import Agent
 from pacman import GameState
 from line_profiler import profile
@@ -145,7 +146,6 @@ def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray],
 
     # Taking food-map
     food_map = state.getFood().copy()
-    print(food_map)
     quadrants = util.divide_map(food_map)
 
     # Decide where the fuck pacman is
@@ -189,7 +189,7 @@ class MultiAgentSearchAgent(Agent):
 
     def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
         self.index = 0 # Pacman is always agent index 0
-        self.evaluationFunction: Callable[[dict[tuple[int, ...], np.ndarray], np.ndarray, GameState], float] = util.lookup(evalFn, globals())
+        self.evaluationFunction: Callable[[dict[tuple[int, ...], np.ndarray], np.ndarray, list[int], GameState], float] = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
 # class MinimaxAgent(MultiAgentSearchAgent):
