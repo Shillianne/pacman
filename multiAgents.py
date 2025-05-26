@@ -163,7 +163,7 @@ def customEvaluationFunction(list_of_moves:list, ghosts_heat_map: dict[tuple[int
     # Obtaning the nearest quadrant according to its centroid position 
     nearest_quadrant, min_dist = util.nearest_quadrant(pacman_pos, where_is_pacman, centroids)
     
-
+   
     f_current = current_proportion/util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2
     f_nearest_centroid = 1/min_dist**2
 
@@ -180,8 +180,14 @@ def customEvaluationFunction(list_of_moves:list, ghosts_heat_map: dict[tuple[int
         if list_of_moves[0:2] == list_of_moves[2:]:
             devaluation = 33
 
+    foodList = food_map.asList() #type: ignore
+    remove = 0
+    if foodList:
+        close_food= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
+        remove += 10.0/(close_food+ 1e-8)
+    remove = -15*len(foodList)*1
 
-    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid) - devaluation
+    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid) - devaluation + remove
 
 
 class MultiAgentSearchAgent(Agent):
