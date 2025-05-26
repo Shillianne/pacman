@@ -127,6 +127,15 @@ def providedEvaluationFunction(state: GameState):
 
 def customEvaluationFunction(list_of_moves:list, ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food:list[int], state: GameState):
 
+
+    if state.isWin():
+        return 9999999999
+    if state.isLose():
+        return -9999999999
+
+
+
+
     # Carlos: aquí está la función para que no te pierdas :)
     # Taking object's coords 
     pacman_pos: tuple[Number, Number] = state.getPacmanPosition()
@@ -178,14 +187,37 @@ def customEvaluationFunction(list_of_moves:list, ghosts_heat_map: dict[tuple[int
     devaluation = 0
     if len(list_of_moves)==4:
         if list_of_moves[0:2] == list_of_moves[2:]:
-            devaluation = 33
+            devaluation = 1000
 
-    foodList = food_map.asList() #type: ignore
     remove = 0
-    if foodList:
-        close_food= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
-        remove += 10.0/(close_food+ 1e-8)
-    remove = -15*len(foodList)*1
+    # foodList = food_map.asList() #type: ignore
+    # remove = 0
+    # if foodList:
+    #     close_food= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
+    #     remove += (10.0/(close_food+ 1e-8))*10
+    # remove = -15*len(foodList)*10
+
+
+    # ghostStates = state.getGhostStates()
+
+
+    # for fantasma in ghostStates:
+    #     ghostPos = fantasma.getPosition()
+    #     calor_fantasma= ghosts_heat_map[int(ghostPos[0]), int(ghostPos[1])][pacman_pos[0]][pacman_pos[1]]
+    #     scaredTimer = fantasma.scaredTimer
+    #     distfanstasma= manhattanDistance(pacman_pos, ghostPos)
+    #     if scaredTimer > 4:
+    #         pass
+    #     else:
+    #         if distfanstasma < 4:
+    #             remove -= 7000
+    #         else:
+    #             remove -= 9/(distfanstasma)
+
+
+
+
+
 
     return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid) - devaluation + remove
 
