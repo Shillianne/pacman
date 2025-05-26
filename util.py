@@ -35,7 +35,7 @@ import math
 import io
 from typing import Optional
 import pickle
-from pacman_types import GridProtocol
+from pacman_types import GameStateDataProtocol, GameStateProtocol, GridProtocol, LayoutProtocol
 
 
 class FixedRandom:
@@ -911,10 +911,10 @@ def where_am_i(current_pos: tuple[int, int], dimensions:tuple[int, int]) -> int:
 
 
 
-def get_centroids(quadrants:list[np.ndarray], dimensions:tuple[int, int] ) ->list[np.ndarray]:
+def get_centroids(quadrants:list[np.ndarray], dimensions:tuple[int, int] ):
     
     # Initializing all the params
-    centroids = []
+    centroids: list[np.ndarray] = []
     h1, w1 = dimensions
     normalize_axis = [(0,0),(h1,0), (h1, w1),(0, w1)]
 
@@ -944,4 +944,27 @@ def nearest_quadrant(current_pos, quadrant:int, values:list[tuple[float, float]]
     
     return min_quad, min_dist
 
-
+def visualize_layout(lay: LayoutProtocol, state: GameStateDataProtocol):
+    viz = []
+    for y in range(lay.height - 1, -1, -1):
+        line = ""
+        for x in range(lay.width - 1, -1, -1):
+            if lay.layoutText[y][x] == '.':
+                if not state.food.data[x][::-1][y]:
+                    line += " "
+                else:
+                    line += lay.layoutText[y][x]
+            elif lay.layoutText[y][x] == "P" or lay.layoutText[y][x] == 'G':
+                line += ' '
+            else:
+                line += lay.layoutText[y][x]
+        viz.append(line[::-1])
+    viz = viz[::-1]
+    for i, agent_state in enumerate(state.agentStates):
+        x, y = agent_state.getPosition()
+        x = int(x)
+        y = int(y)
+        line = viz[-(y + 1)]
+        new_line = "".join([('P' if i == 0 else 'G') if j == x else c for j, c in enumerate(line)])
+        viz[-(y + 1)] = new_line
+    return '\n'.join(viz)

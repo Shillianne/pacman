@@ -27,6 +27,9 @@ class GridProtocol(Protocol):
     def count(self) -> int:
         ...
 
+    def asList(self, key: bool = True) -> list[tuple[int, int]]:
+        ...
+
 
 class LayoutProtocol(Protocol):
     width: int
@@ -46,8 +49,37 @@ class LayoutProtocol(Protocol):
         ...
 
 
+class ConfigurationProtocol(Protocol):
+    pos: tuple[Number, Number]
+    direction: str
+
+    def generateSuccessor(self, vector: tuple[Number, Number]) -> Self:
+        ...
+
+    def getPosition(self) -> tuple[Number, Number]:
+        ...
+
+    def getDirection(self) -> str:
+        ...
+
+
+class AgentStateProtocol(Protocol):
+    scaredTimer: int
+    configuration: ConfigurationProtocol
+    isPacman: bool
+    start: ConfigurationProtocol
+
+    def copy(self) -> Self:
+        ...
+
+    def getPosition(self) -> tuple[Number, Number]:
+        ...
+
+
 class GameStateDataProtocol(Protocol):
     layout: LayoutProtocol
+    food: GridProtocol
+    agentStates: list[AgentStateProtocol]
 
 
 class GameStateProtocol(Protocol):
@@ -69,34 +101,9 @@ class GameStateProtocol(Protocol):
     def generateSuccessor(self, agentIndex: int, action: str) -> Self:
         ...
 
+
 class GameProtocol(Protocol):
     state: GameStateProtocol
-
-
-class ConfigurationProtocol(Protocol):
-    pos: tuple[Number, Number]
-    direction: str
-
-    def generateSuccessor(self, vector: tuple[Number, Number]) -> Self:
-        ...
-
-    def getPosition(self) -> tuple[Number, Number]:
-        ...
-
-    def getDirection(self) -> str:
-        ...
-
-class AgentStateProtocol(Protocol):
-    scaredTimer: int
-    configuration: ConfigurationProtocol
-    isPacman: bool
-    start: ConfigurationProtocol
-
-    def copy(self) -> Self:
-        ...
-
-    def getPosition(self) -> tuple[Number, Number]:
-        ...
 
 
 class Seed:

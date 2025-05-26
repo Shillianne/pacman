@@ -125,7 +125,7 @@ def providedEvaluationFunction(state: GameState):
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
 
 
-def customEvaluationFunction(list_of_moves:list, ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food:list[int], state: GameState):
+def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food: list[int], state: GameState):
 
     # Carlos: aquí está la función para que no te pierdas :)
     # Taking object's coords 
@@ -153,19 +153,23 @@ def customEvaluationFunction(list_of_moves:list, ghosts_heat_map: dict[tuple[int
     where_is_pacman = util.where_am_i(pacman_pos, (food_map.height, food_map.width))
 
     # Obtaining current food proportion per quadrant 
-    quadrant_food_proportion =  [np.sum(quadrants[i]) /original_food[i]for i in range(4)]
-    current_proportion = quadrant_food_proportion[where_is_pacman]
+    quadrant_food_proportion =  [np.sum(quadrants[i]) /original_food[i] for i in range(4)]
+    inverse_food_prop = [(e + 1e-6) ** -1 for e in quadrant_food_proportion]
+    inverse_food_prop = [0 if np.sum(quadrants[i]) == 0 else prop for i, prop in enumerate(inverse_food_prop)]
+    current_proportion = inverse_food_prop[where_is_pacman]
 
+    a = [0, 1, 2, 3]
+    a.remove(where_is_pacman)
+    a = sorted(a, key=lambda x: quadrant_food_proportion[x], reverse=True)
 
     # Get centroids of the quadrants
     centroids = util.get_centroids(quadrants,(food_map.height, food_map.width))
 
     # Obtaning the nearest quadrant according to its centroid position 
-    nearest_quadrant, min_dist = util.nearest_quadrant(pacman_pos, where_is_pacman, centroids)
+    # nearest_quadrant, min_dist = util.nearest_quadrant(pacman_pos, where_is_pacman, centroids)
     
-
-    f_current = current_proportion/util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2
-    f_nearest_centroid = 1/min_dist**2
+    f_current = current_proportion/(util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2)
+    f_nearest_centroid = inverse_food_prop[a[0]]/(util.euclidean_distance(pacman_pos, centroids[a[0]])**2)
 
     # Puntuacion total | Heat Map | Densidad Cuadrante 
     '''
@@ -176,10 +180,10 @@ def customEvaluationFunction(list_of_moves:list, ghosts_heat_map: dict[tuple[int
     '''
     moves = ["East", "West", "North", "South"]
     devaluation = 0
-    if len(list_of_moves)==4:
-        if list_of_moves[0:2] == list_of_moves[2:]:
-            devaluation = 33
-
+    if len(list_of_moves) == 4:
+        if len(set(list_of_moves[:2])) == 2 and len(set(list_of_moves[:2])) == 2 and list_of_moves[:2] == list_of_moves[2:]:
+            # print(list_of_moves, "I repeated moves, I should't do that")
+            devaluation = 150
 
     return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid) - devaluation
 
