@@ -15,6 +15,7 @@ from typing import Optional
 from line_profiler import profile
 import pickle
 import logging
+import copy
 logging.basicConfig(filename="logs/log_trans.log", level=logging.ERROR)
 
 
@@ -106,6 +107,9 @@ class TranspositionTable:
                     return entry.eval
         return TranspositionTable.LOOKUP_FAILED
 
+    def clear(self):
+        self.table: dict[int, Entry] = {}
+
 
 class SearchAgent(MultiAgentSearchAgent):
     def __init__(self, evalFn='customEvaluationFunction', depth=2,
@@ -155,7 +159,7 @@ class SearchAgent(MultiAgentSearchAgent):
                root: Optional[Node] = None) -> float:
         
         # Creating a copy from the list of moves
-        copy_list_of_moves = list_of_moves.copy() 
+        copy_list_of_moves = copy.deepcopy(list_of_moves)
 
         # key = hash(state)
         key = custom_hash(state)
@@ -199,6 +203,7 @@ class SearchAgent(MultiAgentSearchAgent):
 
         self.logger.debug(f"{'\t' * (self.ply - ply)}Starting move search for state {key} and index {agentIndex}")
         for i, move in enumerate(moves):
+            l_moves = copy.deepcopy(copy_list_of_moves)
             if self.move_ordering:
                 assert states is not None
                 successor = states[i]
@@ -209,9 +214,10 @@ class SearchAgent(MultiAgentSearchAgent):
             self.identifier += 1
             self.logger.debug(f"{'\t' * (self.ply - ply)}Performing search for state {s_key} associated to move {move} and index {agentIndex}.")
             if(len(copy_list_of_moves)) == 4:
-                copy_list_of_moves = copy_list_of_moves[1:] + [move]
+                l_moves[1:].extend([move])
+                # copy_list_of_moves = copy_list_of_moves[1:] + [move]
             else:
-                list_of_moves.append(move)
+                l_moves.append(move)
             if agentIndex == 0:  # playing as pacman
                 eval: float = self.search(agentIndex + 1, alpha, beta, ply - 1, successor, copy_list_of_moves, node)
             else:  # playing as a ghost
@@ -299,7 +305,7 @@ class SearchAgent(MultiAgentSearchAgent):
         self.logger.info("Starting search")
         # print(self.n_called)
         # import code; code.interact(local=locals())
-        eval = self.search(0, float("-inf"), float("inf"), self.ply, state, self.list_of_moves, root )
+        eval = self.search(0, float("-inf"), float("inf"), self.ply, state, self.list_of_moves, root)
         self.logger.info("Search finished")
         self.best_eval = eval
         if root is not None:
@@ -317,3 +323,8 @@ class SearchAgent(MultiAgentSearchAgent):
             with open("transposition_table.pickle", "wb") as pf:
                 pickle.dump(self.transpositionTable, pf)
             print("Saved transposition table")
+        self.list_of_moves = []
+        self.bestmove = ""
+        self.best_eval: Optional[float] = None
+        self.n_called = 0
+        self.transpositionTable.clear()
