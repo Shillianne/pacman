@@ -125,8 +125,9 @@ def providedEvaluationFunction(state: GameState):
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
 
 
-def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food:list[int], state: GameState):
+def customEvaluationFunction(list_of_moves:list, ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food:list[int], state: GameState):
 
+    # Carlos: aquí está la función para que no te pierdas :)
     # Taking object's coords 
     pacman_pos: tuple[Number, Number] = state.getPacmanPosition()
     pacman_pos = (int(pacman_pos[0]), int(pacman_pos[1]))
@@ -167,9 +168,20 @@ def customEvaluationFunction(ghosts_heat_map: dict[tuple[int, ...], np.ndarray],
     f_nearest_centroid = 1/min_dist**2
 
     # Puntuacion total | Heat Map | Densidad Cuadrante 
+    '''
+    East:este
+    West: oeste
+    North: norte
+    South: sur
+    '''
+    moves = ["East", "West", "North", "South"]
+    devaluation = 0
+    if len(list_of_moves)==4:
+        if list_of_moves[0:2] == list_of_moves[2:]:
+            devaluation = 33
 
 
-    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid)
+    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid) - devaluation
 
 
 class MultiAgentSearchAgent(Agent):
