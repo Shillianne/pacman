@@ -139,7 +139,7 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     for ghost in ghosts_pos:
         copied_heat_map += ghosts_heat_map[tuple(map(int, ghost))]
 
-    # Pacman's index o
+    # Pacman's position eval
     pos_eval: int = copied_heat_map[pacman_pos]
 
     # Taking the global score
@@ -168,8 +168,12 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     # Obtaning the nearest quadrant according to its centroid position 
     # nearest_quadrant, min_dist = util.nearest_quadrant(pacman_pos, where_is_pacman, centroids)
     
-    f_current = current_proportion/(util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2)
-    f_nearest_centroid = inverse_food_prop[a[0]]/(util.euclidean_distance(pacman_pos, centroids[a[0]])**2)
+    f_current = current_proportion/(util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2 + 1e-10)
+    f_nearest_centroid = inverse_food_prop[a[0]]/(util.euclidean_distance(pacman_pos, centroids[a[0]] )**2 + 1e-10)
+
+    f_total = (f_current + f_nearest_centroid)
+    f_total_norm = f_current/f_total + f_nearest_centroid/f_total
+    k = 10
 
     # Puntuacion total | Heat Map | Densidad Cuadrante 
     '''
@@ -185,7 +189,7 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
             # print(list_of_moves, "I repeated moves, I should't do that")
             devaluation = 150
 
-    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid) - devaluation
+    return score - (pos_eval * 2) + k*f_total_norm - devaluation
 
 
 class MultiAgentSearchAgent(Agent):
