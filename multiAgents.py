@@ -168,8 +168,8 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     # Obtaning the nearest quadrant according to its centroid position 
     # nearest_quadrant, min_dist = util.nearest_quadrant(pacman_pos, where_is_pacman, centroids)
     
-    f_current = current_proportion/(util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2)
-    f_nearest_centroid = inverse_food_prop[a[0]]/(util.euclidean_distance(pacman_pos, centroids[a[0]])**2)
+    f_current = current_proportion/(util.euclidean_distance(pacman_pos, centroids[where_is_pacman]))
+    f_nearest_centroid = inverse_food_prop[a[0]]/(util.euclidean_distance(pacman_pos, centroids[a[0]]))
 
     # Puntuacion total | Heat Map | Densidad Cuadrante 
     '''
@@ -188,10 +188,12 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     foodList = state.getFood().asList()
     if foodList:
         codidacreca= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
-        devaluation -= 10.0/(codidacreca+ 1e-8)
+        devaluation -= 10.0/(codidacreca+ 1e-8)*3
     devaluation += 15*len(foodList)
 
-    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid) - devaluation
+    print(f"Actual: {f_current} | Cercano: {f_nearest_centroid} | Diferencia: {abs(f_current - f_nearest_centroid)}")
+
+    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid)*10 - devaluation
 
 
 class MultiAgentSearchAgent(Agent):
