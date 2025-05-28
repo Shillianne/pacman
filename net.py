@@ -84,7 +84,7 @@ class PacmanNet(nn.Module):
         
         return x
 
-def load_and_merge_data(data_dir="pacman_data"):
+def load_and_merge_data(data_dir="pacman_data")->tuple[list[list[list[int]]], list[int]]:
     """Carga todos los archivos CSV de partidas y los combina en un único DataFrame"""
     all_maps = []
     all_actions = []
@@ -101,15 +101,16 @@ def load_and_merge_data(data_dir="pacman_data"):
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Solo usar movimientos de Pacman (agente 0)
-                if int(row.get('agent_index', 0)) == 0:
-                    action = row.get('action')
-                    map_matrix = json.loads(row.get('map_matrix', '[]'))
-                    
-                    # Verificar que los datos sean válidos
-                    if action in ACTION_TO_IDX and map_matrix:
-                        all_maps.append(map_matrix)
-                        all_actions.append(ACTION_TO_IDX[action])
+                """ # Solo usar movimientos de Pacman (agente 0)
+                    if int(row.get('agent_index', 0)) == 0:
+                """
+                action = row.get('action')
+                map_matrix = json.loads(row.get('map_matrix', '[]'))
+                
+                # Verificar que los datos sean válidos
+                if action in ACTION_TO_IDX and map_matrix:
+                    all_maps.append(map_matrix)
+                    all_actions.append(ACTION_TO_IDX[action])
     
     print(f"Datos cargados: {len(all_maps)} ejemplos")
     return all_maps, all_actions
@@ -223,19 +224,19 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Usando dispositivo: {device}")
     
-    # Cargar datos
+    # Cargar datos--ok
     maps, actions = load_and_merge_data()
     
-    # Preprocesar mapas
+    # Preprocesar mapas-- ok
     maps, input_size = preprocess_maps(maps)
     
     
-    # Dividir en conjunto de entrenamiento y test
+    # Dividir en conjunto de entrenamiento y test--ok
     X_train, X_test, y_train, y_test = train_test_split(
         maps, actions, test_size=0.2, random_state=42, stratify=actions
     )
     
-    # Crear datasets
+    # Crear datasets--ok
     train_dataset = PacmanDataset(X_train, y_train)
     test_dataset = PacmanDataset(X_test, y_test)
     

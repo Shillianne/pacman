@@ -13,7 +13,7 @@ class GameDataCollector:
         if not replay_mode and not os.path.exists(output_dir):
             os.makedirs(output_dir)
     
-    def capture_step(self, agent_index, state, action, result_state=None):
+    def capture_step(self, agent, agent_index, state, action, result_state=None):
         """Captura un paso completo del juego con representación de mapa"""
         if self.replay_mode:
             return
@@ -84,6 +84,7 @@ class GameDataCollector:
             'agent_index': agent_index,
             'action': action,
             'score': state.getScore(),
+            'evaluation': agent.besteval if hasattr(agent, "besteval") else 0, 
             'is_win': state.isWin(),
             'is_lose': state.isLose(),
             'game_over': state.isWin() or state.isLose(),
@@ -119,7 +120,7 @@ class GameDataCollector:
         
         # Guardar los pasos del juego
         fieldnames = [
-            'timestamp', 'agent_index', 'action', 'score',
+            'timestamp', 'agent_index', 'action', 'score', 'evaluation',
             'is_win', 'is_lose', 'game_over', 'map_matrix'
         ]
         
