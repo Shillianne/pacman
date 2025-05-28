@@ -84,7 +84,7 @@ class GameDataCollector:
             'agent_index': agent_index,
             'action': action,
             'score': state.getScore(),
-            'evaluation': agent.besteval if hasattr(agent, "besteval") else 0, 
+            'evaluation': agent.best_eval if hasattr(agent, "best_eval") else 0, 
             'is_win': state.isWin(),
             'is_lose': state.isLose(),
             'game_over': state.isWin() or state.isLose(),
