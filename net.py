@@ -259,12 +259,12 @@ def main():
     print(f"Usando dispositivo: {device}")
     
     # Cargar datos--ok
-    maps, evals = load_and_merge_data()
+    maps, evals = load_and_merge_data(data_dir="train")
     
     # Preprocesar mapas-- ok
     maps, input_size = preprocess_maps(maps)
     
-    
+    import code; code.interact(local=locals())
     # Dividir en conjunto de entrenamiento y test--ok
     X_train, X_test, y_train, y_test = train_test_split(
         maps, evals, test_size=0.2, random_state=42, stratify=evals
