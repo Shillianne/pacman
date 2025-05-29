@@ -155,7 +155,7 @@ class SearchAgent(MultiAgentSearchAgent):
                beta: float,
                ply: int,
                state: GameState,
-               list_of_moves:list,
+               list_of_moves: list,
                root: Optional[Node] = None) -> float:
         
         # Creating a copy from the list of moves

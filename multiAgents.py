@@ -134,58 +134,76 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     ghosts_pos: list[tuple[Number, Number]] = state.getGhostPositions()
     ghosts_pos = [(int(ghost_pos[0]), int(ghost_pos[1])) for ghost_pos in ghosts_pos]
 
+
+    # GLOBAL SCORES
+    score = state.getScore()
+
+    # SECURITY
     # Updating current_heat_map 
     copied_heat_map = current_heat_map.copy()
     for ghost in ghosts_pos:
         copied_heat_map += ghosts_heat_map[tuple(map(int, ghost))]
 
-    # Pacman's index o
+    # Pacman's position safety
     pos_eval: int = copied_heat_map[pacman_pos]
 
-    # Taking the global score
-    score = state.getScore()
-
+   
+    # DIVIDING THE SPACE
     # Taking food-map
     food_map = state.getFood().copy()
     quadrants = util.divide_map(food_map)
 
-    # Decide where the fuck pacman is
+    # Decide in which quadrant is pacman
     where_is_pacman = util.where_am_i(pacman_pos, (food_map.height, food_map.width))
 
-    # Obtaining current food proportion per quadrant 
-    quadrant_food_proportion =  [np.sum(quadrants[i]) /original_food[i] for i in range(4)]
-    inverse_food_prop = [(e + 1e-6) ** -1 for e in quadrant_food_proportion]
-    inverse_food_prop = [0 if np.sum(quadrants[i]) == 0 else prop for i, prop in enumerate(inverse_food_prop)]
-    current_proportion = inverse_food_prop[where_is_pacman]
-
-    a = [0, 1, 2, 3]
-    a.remove(where_is_pacman)
-    a = sorted(a, key=lambda x: quadrant_food_proportion[x], reverse=True)
-
-    # Get centroids of the quadrants
+    # Obtaining integer centroids of the quadrants -> it becomes an integer to compute manhattan
     centroids = util.get_centroids(quadrants,(food_map.height, food_map.width))
 
-    # Obtaning the nearest quadrant according to its centroid position 
-    # nearest_quadrant, min_dist = util.nearest_quadrant(pacman_pos, where_is_pacman, centroids)
-    
-    f_current = current_proportion/(util.euclidean_distance(pacman_pos, centroids[where_is_pacman])**2)
-    f_nearest_centroid = inverse_food_prop[a[0]]/(util.euclidean_distance(pacman_pos, centroids[a[0]])**2)
+    """quadrant_food_proportion =  [int(np.sum(quadrants[i]) /original_food[i]) for i in range(4)]
+        inverse_food_prop = [(e + 1e-6) ** -1 for e in quadrant_food_proportion]
+        inverse_food_prop = [0 if np.sum(quadrants[i]) == 0 else prop for i, prop in enumerate(inverse_food_prop)]
+        current_proportion = inverse_food_prop[where_is_pacman]"""
 
-    # Puntuacion total | Heat Map | Densidad Cuadrante 
-    '''
-    East:este
-    West: oeste
-    North: norte
-    South: sur
-    '''
-    moves = ["East", "West", "North", "South"]
+    # Computing manhattan distance to pacman's centroid
+    manhattan_to_pacman_centroid = util.manhattanDistance(centroids[where_is_pacman], pacman_pos)
+   
+    # Obtaning the nearest quadrant to pacman
+    list_of_quadrants = [0,1,2,3]
+    manhattan_distance_to_quadrants = [util.manhattanDistance(pacman_pos, centroid) for centroid in centroids]
+    sorted_quadrants = sorted(list_of_quadrants, key = lambda x: manhattan_distance_to_quadrants[x])   
+    sorted_quadrants.remove(where_is_pacman)
+    nearest_quadrant = sorted_quadrants[0]
+
+
+
+    # MEAN OF THE DANGER REFERING THE FOOD BELONGING TO THE ACTUAL QUADRANT
+    danger_grid = Grid(height = copied_heat_map.shape[1], width = copied_heat_map.shape[0] )
+    danger_grid.data = copied_heat_map
+    divided_danger_map = util.divide_map(danger_grid)
+    sum_of_danger = np.sum(divided_danger_map[where_is_pacman][np.where(quadrants[where_is_pacman]==1)])
+    if sum_of_danger != 0:
+        mean_of_danger = sum_of_danger / np.sum(quadrants[where_is_pacman])
+    else:
+        mean_of_danger = 0
+
+
+    # REPEATING MOVES (does not work properly)
     devaluation = 0
     if len(list_of_moves) == 4:
         if len(set(list_of_moves[:2])) == 2 and len(set(list_of_moves[:2])) == 2 and list_of_moves[:2] == list_of_moves[2:]:
             # print(list_of_moves, "I repeated moves, I should't do that")
-            devaluation = 150
+            devaluation = 200
 
-    return score - (pos_eval * 2) + abs(f_current - f_nearest_centroid) - devaluation
+    foodList = state.getFood().asList()
+    if foodList:
+        codidacreca= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
+        devaluation -= 10.0/(codidacreca+ 1e-8)*3
+    devaluation += 15*len(foodList)
+
+
+    # print("devaluation:", devaluation)
+    # print("eval:", score -manhattan_to_pacman_centroid -mean_of_danger - (pos_eval * 2) - devaluation)
+    return score -manhattan_to_pacman_centroid -mean_of_danger - (pos_eval * 2) - devaluation
 
 
 class MultiAgentSearchAgent(Agent):

@@ -801,7 +801,7 @@ class Game:
             ###################################################
             # AQUÍ es donde capturamos los datos
             if self.data_collector and agentIndex == 0:
-                self.data_collector.capture_step(agentIndex, current_state, action, self.state)
+                self.data_collector.capture_step(agent, agentIndex, current_state, action, self.state)
             ###################################################
 
 
