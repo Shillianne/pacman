@@ -91,13 +91,12 @@ class PacmanEval(nn.Module):
         # y|x dims
         # Defining the items 
         self.input_size = input_size
-        self.l1 = nn.Linear(in_features = torch.prod(torch.tensor(input_size)), out_features = 256)
-        self.l2 = nn.Linear(in_features = 256, out_features = 128)
-        self.l3 = nn.Linear(in_features = 128, out_features = 64)
-        self.l4 = nn.Linear(in_features = 64, out_features = 1)
+        self.l1 = nn.Linear(in_features = input_size[0] * input_size[1], out_features = 128)
+        self.l2 = nn.Linear(in_features = 128, out_features = 64)
+        self.l3 = nn.Linear(in_features = 64, out_features = 1)
 
         # Activation functions
-        self.relu = nn.ReLU()
+        self.nlinear = nn.GELU()
         self.dropout = nn.Dropout(0.3)
 
 
@@ -106,13 +105,11 @@ class PacmanEval(nn.Module):
         x = x.view(x.size(0), -1)  # Shape: (batch_size, height*width)
         
         # Capas fully connected
-        x = self.relu(self.l1(x))
+        x = self.nlinear(self.l1(x))
         x = self.dropout(x)
-        x = self.relu(self.l2(x))
+        x = self.nlinear(self.l2(x))
         x = self.dropout(x)
-        x = self.relu(self.l3(x))
-        x = self.dropout(x)
-        x = self.l4(x)
+        x = self.nlinear(self.l3(x))
         
         return x
 
@@ -169,7 +166,7 @@ def preprocess_maps(maps):
 
 def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS):
     """Entrena el modelo con el dataset proporcionado"""
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
     best_accuracy = 0.0
@@ -254,20 +251,21 @@ def save_model(model, input_size, model_path="models/pacman_eval_model.pth"):
 def main():
     import time
     start_time = time.time()
+
     # Verificar disponibilidad de GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Usando dispositivo: {device}")
     
     # Cargar datos--ok
     maps, evals = load_and_merge_data(data_dir="train")
+    print(f"Min value: {min(evals)} | Max value: {max(evals)}")
     
     # Preprocesar mapas-- ok
     maps, input_size = preprocess_maps(maps)
     
-    import code; code.interact(local=locals())
     # Dividir en conjunto de entrenamiento y test--ok
     X_train, X_test, y_train, y_test = train_test_split(
-        maps, evals, test_size=0.2, random_state=42, stratify=evals
+        maps, evals, test_size=0.2, random_state=42
     )
     
     # Crear datasets--ok
@@ -288,5 +286,7 @@ def main():
     # Guardar modelo
     save_model(trained_model, input_size)
     print(f"Tiempo total de ejecución: {time.time() - start_time:.2f} segundos")
+
+
 if __name__ == "__main__":
     main()
