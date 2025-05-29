@@ -911,7 +911,7 @@ def where_am_i(current_pos: tuple[int, int], dimensions:tuple[int, int]) -> int:
 
 
 
-def get_centroids(quadrants:list[np.ndarray], dimensions:tuple[int, int] ):
+def get_centroids(quadrants: list[np.ndarray], dimensions: tuple[int, int]):
     
     # Initializing all the params
     centroids: list[np.ndarray] = []
@@ -924,7 +924,7 @@ def get_centroids(quadrants:list[np.ndarray], dimensions:tuple[int, int] ):
         centroids.append(centroid + normalize_axis[index])
 
     # Turning into integers
-    centroids = list(map(int, centroids))
+    result = [np.array(list(map(int, centroid.tolist()))) for centroid in centroids]
 
     return centroids
 

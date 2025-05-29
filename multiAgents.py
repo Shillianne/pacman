@@ -165,7 +165,7 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
         current_proportion = inverse_food_prop[where_is_pacman]"""
 
     # Computing manhattan distance to pacman's centroid
-    manhattan_to_pacman_centroid = util.manhattanDistan(centroids[where_is_pacman], pacman_pos)
+    manhattan_to_pacman_centroid = util.manhattanDistance(centroids[where_is_pacman], pacman_pos)
    
     # Obtaning the nearest quadrant to pacman
     list_of_quadrants = [0,1,2,3]
@@ -181,21 +181,18 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     danger_grid.data = copied_heat_map
     divided_danger_map = util.divide_map(danger_grid)
     sum_of_danger = np.sum(divided_danger_map[where_is_pacman][np.where(quadrants[where_is_pacman]==1)])
-    mean_of_danger = sum_of_danger/np.sum(quadrants[where_is_pacman])
+    if sum_of_danger != 0:
+        mean_of_danger = sum_of_danger / np.sum(quadrants[where_is_pacman])
+    else:
+        mean_of_danger = 0
 
 
-    # REPEATING MOVES
-    '''
-    East:este
-    West: oeste
-    North: norte
-    South: sur
-    '''
+    # REPEATING MOVES (does not work properly)
     devaluation = 0
     if len(list_of_moves) == 4:
         if len(set(list_of_moves[:2])) == 2 and len(set(list_of_moves[:2])) == 2 and list_of_moves[:2] == list_of_moves[2:]:
             # print(list_of_moves, "I repeated moves, I should't do that")
-            devaluation = 150
+            devaluation = 200
 
     foodList = state.getFood().asList()
     if foodList:
@@ -204,7 +201,9 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     devaluation += 15*len(foodList)
 
 
-    return score -manhattan_to_pacman_centroid -mean_of_danger - (pos_eval * 2)  - devaluation
+    # print("devaluation:", devaluation)
+    # print("eval:", score -manhattan_to_pacman_centroid -mean_of_danger - (pos_eval * 2) - devaluation)
+    return score -manhattan_to_pacman_centroid -mean_of_danger - (pos_eval * 2) - devaluation
 
 
 class MultiAgentSearchAgent(Agent):
