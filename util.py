@@ -920,8 +920,11 @@ def get_centroids(quadrants:list[np.ndarray], dimensions:tuple[int, int] ):
 
     # Just taking centroids 
     for index, quadrant in enumerate(quadrants):
-        centroid  = np.sum(np.where(quadrant==1), axis = 1)/(quadrant.shape[0]*quadrant.shape[1])
+        centroid = np.sum(np.where(quadrant==1), axis = 1)/(quadrant.shape[0]*quadrant.shape[1])
         centroids.append(centroid + normalize_axis[index])
+
+    # Turning into integers
+    centroids = list(map(int, centroids))
 
     return centroids
 
@@ -930,7 +933,7 @@ def euclidean_distance(v1:tuple, v2: tuple) ->float:
     return np.sqrt((v1[0]- v2[0])**2 +(v1[1] - v2[1])**2)
     
 
-def nearest_quadrant(current_pos, quadrant:int, values:list[tuple[float, float]]) -> tuple[int, float]:
+def nearest_quadrant(current_pos, quadrant:int, values:list[tuple[int, int]]) -> tuple[int, float]:
 
     min_dist = math.inf
     min_quad = -1
