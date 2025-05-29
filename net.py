@@ -84,10 +84,40 @@ class PacmanNet(nn.Module):
         
         return x
 
-def load_and_merge_data(data_dir="pacman_data"):
+class PacmanEval(nn.Module):
+    def __init__(self, input_size:tuple[int, int]):
+        super().__init__()
+
+        # y|x dims
+        # Defining the items 
+        self.input_size = input_size
+        self.l1 = nn.Linear(in_features = input_size[0] * input_size[1], out_features = 128)
+        self.l2 = nn.Linear(in_features = 128, out_features = 64)
+        self.l3 = nn.Linear(in_features = 64, out_features = 1)
+
+        # Activation functions
+        self.nlinear = nn.GELU()
+        self.dropout = nn.Dropout(0.3)
+
+
+    def forward(self, x:torch.Tensor):
+        # Aplanar la entrada
+        x = x.view(x.size(0), -1)  # Shape: (batch_size, height*width)
+        
+        # Capas fully connected
+        x = self.nlinear(self.l1(x))
+        x = self.dropout(x)
+        x = self.nlinear(self.l2(x))
+        x = self.dropout(x)
+        x = self.nlinear(self.l3(x))
+        
+        return x
+
+
+def load_and_merge_data(data_dir="pacman_data")->tuple[list[list[list[int]]], list[float]]:
     """Carga todos los archivos CSV de partidas y los combina en un único DataFrame"""
     all_maps = []
-    all_actions = []
+    all_evaluations = []
     
     csv_files = glob.glob(os.path.join(data_dir, "*.csv"))
     print(f"Archivos CSV encontrados: {csv_files}")
@@ -101,18 +131,20 @@ def load_and_merge_data(data_dir="pacman_data"):
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Solo usar movimientos de Pacman (agente 0)
-                if int(row.get('agent_index', 0)) == 0:
-                    action = row.get('action')
-                    map_matrix = json.loads(row.get('map_matrix', '[]'))
-                    
-                    # Verificar que los datos sean válidos
-                    if action in ACTION_TO_IDX and map_matrix:
-                        all_maps.append(map_matrix)
-                        all_actions.append(ACTION_TO_IDX[action])
+                """ # Solo usar movimientos de Pacman (agente 0)
+                    if int(row.get('agent_index', 0)) == 0:
+                """
+                #action = row.get('action')
+                eval = row.get('evaluation')
+                map_matrix = json.loads(row.get('map_matrix', '[]'))
+                
+                # Verificar que los datos sean válidos
+                if map_matrix:
+                    all_maps.append(map_matrix)
+                    all_evaluations.append(float(eval))
     
     print(f"Datos cargados: {len(all_maps)} ejemplos")
-    return all_maps, all_actions
+    return all_maps, all_evaluations
 
 def preprocess_maps(maps):
     """Preprocesa las matrices del juego para preparar los datos de entrada para la red"""
@@ -134,7 +166,7 @@ def preprocess_maps(maps):
 
 def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS):
     """Entrena el modelo con el dataset proporcionado"""
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
     best_accuracy = 0.0
@@ -149,12 +181,12 @@ def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS)
         train_correct = 0
         train_total = 0
         
-        for batch_idx, (maps, actions) in enumerate(train_loader):
-            maps, actions = maps.to(device), actions.to(device)
+        for batch_idx, (maps, evals) in enumerate(train_loader):
+            maps, evals = maps.to(device), evals.to(device)
             
             # Forward pass
             outputs = model(maps)
-            loss = criterion(outputs, actions)
+            loss = criterion(outputs, evals)
             
             # Backward pass y optimización
             optimizer.zero_grad()
@@ -164,8 +196,8 @@ def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS)
             # Estadísticas
             train_loss += loss.item()
             _, predicted = outputs.max(1)
-            train_total += actions.size(0)
-            train_correct += predicted.eq(actions).sum().item()
+            train_total += evals.size(0)
+            train_correct += predicted.eq(evals).sum().item()
             
             if (batch_idx + 1) % 10 == 0:
                 print(f'Epoch: {epoch+1}/{num_epochs}, Batch: {batch_idx+1}/{len(train_loader)}, Loss: {train_loss/(batch_idx+1):.4f}, Acc: {100.*train_correct/train_total:.2f}%')
@@ -177,15 +209,15 @@ def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS)
         test_total = 0
         
         with torch.no_grad():
-            for maps, actions in test_loader:
-                maps, actions = maps.to(device), actions.to(device)
+            for maps, evals in test_loader:
+                maps, evals = maps.to(device), evals.to(device)
                 outputs = model(maps)
-                loss = criterion(outputs, actions)
+                loss = criterion(outputs, evals)
                 
                 test_loss += loss.item()
                 _, predicted = outputs.max(1)
-                test_total += actions.size(0)
-                test_correct += predicted.eq(actions).sum().item()
+                test_total += evals.size(0)
+                test_correct += predicted.eq(evals).sum().item()
         
         test_accuracy = 100. * test_correct / test_total
         print(f'Epoch: {epoch+1}/{num_epochs}, Train Loss: {train_loss/len(train_loader):.4f}, Test Loss: {test_loss/len(test_loader):.4f}, Test Acc: {test_accuracy:.2f}%')
@@ -203,7 +235,7 @@ def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS)
     
     return model
 
-def save_model(model, input_size, model_path="models/pacman_model.pth"):
+def save_model(model, input_size, model_path="models/pacman_eval_model.pth"):
     """Guarda el modelo entrenado"""
     if not os.path.exists(os.path.dirname(model_path)):
         os.makedirs(os.path.dirname(model_path))
@@ -219,32 +251,33 @@ def save_model(model, input_size, model_path="models/pacman_model.pth"):
 def main():
     import time
     start_time = time.time()
+
     # Verificar disponibilidad de GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Usando dispositivo: {device}")
     
-    # Cargar datos
-    maps, actions = load_and_merge_data()
+    # Cargar datos--ok
+    maps, evals = load_and_merge_data(data_dir="train")
+    print(f"Min value: {min(evals)} | Max value: {max(evals)}")
     
-    # Preprocesar mapas
+    # Preprocesar mapas-- ok
     maps, input_size = preprocess_maps(maps)
     
-    
-    # Dividir en conjunto de entrenamiento y test
+    # Dividir en conjunto de entrenamiento y test--ok
     X_train, X_test, y_train, y_test = train_test_split(
-        maps, actions, test_size=0.2, random_state=42, stratify=actions
+        maps, evals, test_size=0.2, random_state=42
     )
     
-    # Crear datasets
+    # Crear datasets--ok
     train_dataset = PacmanDataset(X_train, y_train)
     test_dataset = PacmanDataset(X_test, y_test)
     
-    # Crear dataloaders
+    # Crear dataloaders--ok
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
     
     # Crear modelo
-    model = PacmanNet(input_size, HIDDEN_SIZE, NUM_ACTIONS).to(device)
+    model = PacmanEval(input_size).to(device)
     print(f"Modelo creado: {model}")
     
     # Entrenar modelo
@@ -253,5 +286,7 @@ def main():
     # Guardar modelo
     save_model(trained_model, input_size)
     print(f"Tiempo total de ejecución: {time.time() - start_time:.2f} segundos")
+
+
 if __name__ == "__main__":
     main()
