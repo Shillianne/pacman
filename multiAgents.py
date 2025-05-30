@@ -15,7 +15,7 @@ from typing import Callable, cast
 import torch
 import math
 import numpy as np
-from net import PacmanNet
+from net import PacmanEval, PacmanNet
 from copy import copy
 import os
 import pacman
@@ -33,6 +33,7 @@ import pandas as pd
 
 with open("vector_table.pickle", "rb") as pf:
     vector_table: dict[tuple[int, int], np.ndarray] = pickle.load(pf)
+
 
 class ReflexAgent(Agent):
     """
@@ -123,6 +124,42 @@ def providedEvaluationFunction(state: GameState):
     if True in [s[1] for s in ghost_state]:
         scared_ghost_distance = min(manhattanDistance(pacman_pos, positions[idx]) for idx, isScared in ghost_state if isScared)
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
+
+def neuralEvaluationFunction(model: PacmanEval, state: GameState):
+    walls = state.getWalls()
+    width, height = walls.width, walls.height
+    
+    # Crear una matriz vacía llena de espacios
+    game_map = [[1 for _ in range(height)] for _ in range(width)]
+    
+    # Agregar paredes (%)
+    for x in range(width):
+        for y in range(height):
+            if walls[x][y]:
+                game_map[x][y] = 0
+    
+    # Agregar comida (.)
+    food = state.getFood()
+    for x in range(width):
+        for y in range(height):
+            if food[x][y]:
+                game_map[x][y] = 2
+    
+    # Agregar cápsulas (o)
+    for x, y in state.getCapsules():
+        game_map[x][y] = 3  # type: ignore
+    
+    # Agregar fantasmas (G)
+    for ghost_state in state.getGhostStates():
+        ghost_x, ghost_y = int(ghost_state.getPosition()[0]), int(ghost_state.getPosition()[1])
+        game_map[ghost_x][ghost_y] = 4
+    
+    # Agregar Pacman (P)
+    pacman_x, pacman_y = state.getPacmanPosition()
+    game_map[int(pacman_x)][int(pacman_y)] = 5
+    t = torch.tensor(game_map, dtype=torch.float32, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    eval = model(t.unsqueeze(0)).squeeze(0)
+    return eval.cpu().item()
 
 
 def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food: list[int], state: GameState):

@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from net import PacmanNet
+from net import PacmanEval, PacmanNet
 import os
 from pacman_types import Seed
 from util import manhattanDistance, nearestPoint, heat_maps
@@ -112,7 +112,7 @@ class TranspositionTable:
 
 
 class SearchAgent(MultiAgentSearchAgent):
-    def __init__(self, evalFn='customEvaluationFunction', depth=2,
+    def __init__(self, evalFn='neuralEvaluationFunction', depth=2,
                  alphabeta: bool | str = True,
                  transposition: bool | str = True,
                  ordering: bool | str = True,
@@ -132,6 +132,11 @@ class SearchAgent(MultiAgentSearchAgent):
         self.move_ordering =  ordering if isinstance(ordering, bool) else ordering == "True"
         self.ghosts_heat_map, self.current_heat_map, self.original_food  = heat_maps(self.layout)
         self.save = False
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        state_dict = torch.load("models/pacman_eval_model.pth")
+        self.model = PacmanEval(state_dict['input_size'])
+        self.model.cuda()
+        self.model.load_state_dict(state_dict['model_state_dict'])
 
         print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering} on map {self.layout}")
         if not self.alphabeta and not self.transposition and not self.move_ordering:
@@ -170,7 +175,8 @@ class SearchAgent(MultiAgentSearchAgent):
         if state.isWin() or state.isLose() or ply == 0:
             self.logger.debug(f"{'\t' * (self.ply - ply)}Reached bottom of the search tree.")
             # Carlos
-            eval = self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
+            # eval = self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
+            eval = self.evaluationFunction(self.model, state)
             if root is not None:
                 root.eval = eval
                 root.alpha = alpha
@@ -189,7 +195,8 @@ class SearchAgent(MultiAgentSearchAgent):
         if "Stop" in moves:
             moves.remove("Stop")
         if not moves:
-            return self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
+            # return self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
+            return self.evaluationFunction(self.model, state)
         states = None
         if self.move_ordering:
             moves, states = order_moves(moves, state, agentIndex)
