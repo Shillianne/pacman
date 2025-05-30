@@ -162,7 +162,10 @@ def neuralEvaluationFunction(model: PacmanEval, state: GameState):
     return eval.cpu().item()
 
 
-def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food: list[int], state: GameState):
+def customEvaluationFunction(list_of_moves: list,
+                            ghosts_heat_map: dict[tuple[int, ...], np.ndarray],
+                            current_heat_map: np.ndarray, original_food: list[int],
+                            state: GameState):
 
     # Carlos: aquí está la función para que no te pierdas :)
     # Taking object's coords 
@@ -214,6 +217,15 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     centroids = util.get_centroids(quadrants,(food_map.height, food_map.width))
     manhattan_to_pacman_centroid = util.manhattanDistance(centroids[where_is_pacman], pacman_pos)
 
+    # REPEATING MOVES (does not work as we expected to)
+    devaluation = 0
+    if len(list_of_moves) == 4:
+        if (len(set(list_of_moves[:2])) == 2 and
+             len(set(list_of_moves[:2])) == 2 and
+             list_of_moves[:2] == list_of_moves[2:]):
+            # print(list_of_moves, "I repeated moves, I should't do that")
+            devaluation = 200
+
 
     # REWARDING FOOD
     foodList = state.getFood().asList()
@@ -223,14 +235,7 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     devaluation += 15*len(foodList)
 
    
-    # REPEATING MOVES (does not work as we expected to)
-    devaluation = 0
-    if len(list_of_moves) == 4:
-        if (len(set(list_of_moves[:2])) == 2 and
-             len(set(list_of_moves[:2])) == 2 and
-             list_of_moves[:2] == list_of_moves[2:]):
-            # print(list_of_moves, "I repeated moves, I should't do that")
-            devaluation = 200
+    
 
     # F CALCULATION
     """quadrant_food_proportion =  [int(np.sum(quadrants[i]) /original_food[i]) for i in range(4)]
