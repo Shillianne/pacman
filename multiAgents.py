@@ -233,8 +233,8 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
 
     foodList = state.getFood().asList()
     if foodList:
-        codidacreca= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
-        devaluation -= 10.0/(codidacreca+ 1e-8)*3
+        close_food= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
+        devaluation -= 10.0/(close_food + 1e-8)*3
     devaluation += 15*len(foodList)
 
 
