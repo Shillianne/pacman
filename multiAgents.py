@@ -15,7 +15,7 @@ from typing import Callable, cast
 import torch
 import math
 import numpy as np
-from net import PacmanNet
+from net import PacmanEval, PacmanNet
 from copy import copy
 import os
 import pacman
@@ -33,6 +33,7 @@ import pandas as pd
 
 with open("vector_table.pickle", "rb") as pf:
     vector_table: dict[tuple[int, int], np.ndarray] = pickle.load(pf)
+
 
 class ReflexAgent(Agent):
     """
@@ -124,8 +125,51 @@ def providedEvaluationFunction(state: GameState):
         scared_ghost_distance = min(manhattanDistance(pacman_pos, positions[idx]) for idx, isScared in ghost_state if isScared)
     return w1 * score + w2 * food_distance + w3 * capsule_distance + w4 * ghost_distance + w5 * scared_ghost_distance
 
+def neuralEvaluationFunction(model: PacmanEval, state: GameState):
+    walls = state.getWalls()
+    width, height = walls.width, walls.height
+    
+    # Crear una matriz vacía llena de espacios
+    game_map = [[1 for _ in range(height)] for _ in range(width)]
+    
+    # Agregar paredes (%)
+    for x in range(width):
+        for y in range(height):
+            if walls[x][y]:
+                game_map[x][y] = 0
+    
+    # Agregar comida (.)
+    food = state.getFood()
+    for x in range(width):
+        for y in range(height):
+            if food[x][y]:
+                game_map[x][y] = 2
+    
+    # Agregar cápsulas (o)
+    for x, y in state.getCapsules():
+        game_map[x][y] = 3  # type: ignore
+    
+    # Agregar fantasmas (G)
+    for ghost_state in state.getGhostStates():
+        ghost_x, ghost_y = int(ghost_state.getPosition()[0]), int(ghost_state.getPosition()[1])
+        game_map[ghost_x][ghost_y] = 4
+    
+    # Agregar Pacman (P)
+    pacman_x, pacman_y = state.getPacmanPosition()
+    game_map[int(pacman_x)][int(pacman_y)] = 5
+    t = torch.tensor(game_map, dtype=torch.float32, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    eval = model(t.unsqueeze(0)).squeeze(0)
+    value = eval.cpu().item()
+    low = -1500
+    high = 2500
+    res =(value * (high + abs(low))) - abs(low)
+    return res
 
-def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[int, ...], np.ndarray], current_heat_map: np.ndarray, original_food: list[int], state: GameState):
+
+def customEvaluationFunction(list_of_moves: list,
+                            ghosts_heat_map: dict[tuple[int, ...], np.ndarray],
+                            current_heat_map: np.ndarray, original_food: list[int],
+                            state: GameState):
 
     # Carlos: aquí está la función para que no te pierdas :)
     # Taking object's coords 
@@ -147,36 +191,18 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
     # Pacman's position safety
     pos_eval: int = copied_heat_map[pacman_pos]
 
-   
-    # DIVIDING THE SPACE
+ 
+    # MEAN-DANGER-CURRENT-QUADRANT
+
+    #1.Dividing the space
     # Taking food-map
     food_map = state.getFood().copy()
     quadrants = util.divide_map(food_map)
 
-    # Decide in which quadrant is pacman
+    #2. Decide in which quadrant is pacman
     where_is_pacman = util.where_am_i(pacman_pos, (food_map.height, food_map.width))
 
-    # Obtaining integer centroids of the quadrants -> it becomes an integer to compute manhattan
-    centroids = util.get_centroids(quadrants,(food_map.height, food_map.width))
-
-    """quadrant_food_proportion =  [int(np.sum(quadrants[i]) /original_food[i]) for i in range(4)]
-        inverse_food_prop = [(e + 1e-6) ** -1 for e in quadrant_food_proportion]
-        inverse_food_prop = [0 if np.sum(quadrants[i]) == 0 else prop for i, prop in enumerate(inverse_food_prop)]
-        current_proportion = inverse_food_prop[where_is_pacman]"""
-
-    # Computing manhattan distance to pacman's centroid
-    manhattan_to_pacman_centroid = util.manhattanDistance(centroids[where_is_pacman], pacman_pos)
-   
-    # Obtaning the nearest quadrant to pacman
-    list_of_quadrants = [0,1,2,3]
-    manhattan_distance_to_quadrants = [util.manhattanDistance(pacman_pos, centroid) for centroid in centroids]
-    sorted_quadrants = sorted(list_of_quadrants, key = lambda x: manhattan_distance_to_quadrants[x])   
-    sorted_quadrants.remove(where_is_pacman)
-    nearest_quadrant = sorted_quadrants[0]
-
-
-
-    # MEAN OF THE DANGER REFERING THE FOOD BELONGING TO THE ACTUAL QUADRANT
+    #3. Obtaining danger mean
     danger_grid = Grid(height = copied_heat_map.shape[1], width = copied_heat_map.shape[0] )
     danger_grid.data = copied_heat_map
     divided_danger_map = util.divide_map(danger_grid)
@@ -187,18 +213,48 @@ def customEvaluationFunction(list_of_moves: list, ghosts_heat_map: dict[tuple[in
         mean_of_danger = 0
 
 
-    # REPEATING MOVES (does not work properly)
+
+      
+ 
+    # LOOK FOR DENSITY
+    # Computing manhattan distance to pacman's centroid
+    centroids = util.get_centroids(quadrants,(food_map.height, food_map.width))
+    manhattan_to_pacman_centroid = util.manhattanDistance(centroids[where_is_pacman], pacman_pos)
+
+    # REPEATING MOVES (does not work as we expected to)
     devaluation = 0
     if len(list_of_moves) == 4:
-        if len(set(list_of_moves[:2])) == 2 and len(set(list_of_moves[:2])) == 2 and list_of_moves[:2] == list_of_moves[2:]:
+        if (len(set(list_of_moves[:2])) == 2 and
+             len(set(list_of_moves[:2])) == 2 and
+             list_of_moves[:2] == list_of_moves[2:]):
             # print(list_of_moves, "I repeated moves, I should't do that")
             devaluation = 200
 
+
+    # REWARDING FOOD
     foodList = state.getFood().asList()
     if foodList:
-        codidacreca= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
-        devaluation -= 10.0/(codidacreca+ 1e-8)*3
+        close_food= min([manhattanDistance(pacman_pos, foodPos) for foodPos in foodList])
+        devaluation -= 10.0/(close_food + 1e-8)*3
     devaluation += 15*len(foodList)
+
+   
+    
+
+    # F CALCULATION
+    """quadrant_food_proportion =  [int(np.sum(quadrants[i]) /original_food[i]) for i in range(4)]
+        inverse_food_prop = [(e + 1e-6) ** -1 for e in quadrant_food_proportion]
+        inverse_food_prop = [0 if np.sum(quadrants[i]) == 0 else prop for i, prop in enumerate(inverse_food_prop)]
+        current_proportion = inverse_food_prop[where_is_pacman]"""
+
+
+    # Obtaning the nearest quadrant to pacman
+    """list_of_quadrants = [0,1,2,3]
+    manhattan_distance_to_quadrants = [util.manhattanDistance(pacman_pos, centroid) for centroid in centroids]
+    sorted_quadrants = sorted(list_of_quadrants, key = lambda x: manhattan_distance_to_quadrants[x])   
+    sorted_quadrants.remove(where_is_pacman)"""
+    """    nearest_quadrant = sorted_quadrants[0]
+    """
 
 
     # print("devaluation:", devaluation)

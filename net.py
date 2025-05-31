@@ -24,9 +24,10 @@ INPUT_SIZE = None  # Se determinará en tiempo de ejecución basado en el tamañ
 HIDDEN_SIZE = 128
 NUM_ACTIONS = 5  # Stop, North, South, East, West
 BATCH_SIZE = 64
-LEARNING_RATE = 0.001
-NUM_EPOCHS = 100
+LEARNING_RATE = 0.005
+NUM_EPOCHS = 500
 MODELS_DIR = "models"
+TOLERANCE = 0.001
 
 # Mapeo de acciones a índices
 ACTION_TO_IDX = {
@@ -50,7 +51,7 @@ class PacmanDataset(Dataset):
     
     def __getitem__(self, idx):
         map_tensor = torch.FloatTensor(self.maps[idx])
-        action_tensor = torch.LongTensor([self.actions[idx]])
+        action_tensor = torch.FloatTensor([self.actions[idx]])
         return map_tensor, action_tensor.squeeze()
 
 class PacmanNet(nn.Module):
@@ -91,18 +92,21 @@ class PacmanEval(nn.Module):
         # y|x dims
         # Defining the items 
         self.input_size = input_size
-        self.l1 = nn.Linear(in_features = input_size[0] * input_size[1], out_features = 128)
-        self.l2 = nn.Linear(in_features = 128, out_features = 64)
-        self.l3 = nn.Linear(in_features = 64, out_features = 1)
+        self.l1 = nn.Linear(in_features = input_size[0] * input_size[1], out_features = 64)
+        self.l2 = nn.Linear(in_features = 64, out_features = 32)
+        self.l3 = nn.Linear(in_features = 32, out_features = 1)
 
         # Activation functions
         self.nlinear = nn.GELU()
         self.dropout = nn.Dropout(0.3)
+        self.sigmoid = nn.Sigmoid()
+        self.ln = nn.LayerNorm(input_size[0] * input_size[1])
 
 
-    def forward(self, x:torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Aplanar la entrada
         x = x.view(x.size(0), -1)  # Shape: (batch_size, height*width)
+        x = self.ln(x)
         
         # Capas fully connected
         x = self.nlinear(self.l1(x))
@@ -111,7 +115,7 @@ class PacmanEval(nn.Module):
         x = self.dropout(x)
         x = self.nlinear(self.l3(x))
         
-        return x
+        return self.sigmoid(x)
 
 
 def load_and_merge_data(data_dir="pacman_data")->tuple[list[list[list[int]]], list[float]]:
@@ -163,11 +167,15 @@ def preprocess_maps(maps):
     
     return processed_maps, (height, width)
 
+def accuracy(y_true: torch.Tensor, y_pred: torch.Tensor, tolerance: float = 0.05):
+    correct = (y_true - y_pred) < tolerance
+    return torch.count_nonzero(correct)
 
 def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS):
     """Entrena el modelo con el dataset proporcionado"""
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    criterion = nn.L1Loss()
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.95))
+    # optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
     
     best_accuracy = 0.0
     best_model_state = None
@@ -186,7 +194,7 @@ def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS)
             
             # Forward pass
             outputs = model(maps)
-            loss = criterion(outputs, evals)
+            loss = criterion(outputs, evals.unsqueeze(1))
             
             # Backward pass y optimización
             optimizer.zero_grad()
@@ -197,7 +205,8 @@ def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS)
             train_loss += loss.item()
             _, predicted = outputs.max(1)
             train_total += evals.size(0)
-            train_correct += predicted.eq(evals).sum().item()
+            # train_correct += predicted.eq(evals).sum().item()
+            train_correct += accuracy(evals.unsqueeze(1), outputs, tolerance=TOLERANCE)
             
             if (batch_idx + 1) % 10 == 0:
                 print(f'Epoch: {epoch+1}/{num_epochs}, Batch: {batch_idx+1}/{len(train_loader)}, Loss: {train_loss/(batch_idx+1):.4f}, Acc: {100.*train_correct/train_total:.2f}%')
@@ -212,12 +221,13 @@ def train_model(model, train_loader, test_loader, device, num_epochs=NUM_EPOCHS)
             for maps, evals in test_loader:
                 maps, evals = maps.to(device), evals.to(device)
                 outputs = model(maps)
-                loss = criterion(outputs, evals)
+                loss = criterion(outputs, evals.unsqueeze(1))
                 
                 test_loss += loss.item()
                 _, predicted = outputs.max(1)
                 test_total += evals.size(0)
-                test_correct += predicted.eq(evals).sum().item()
+                # test_correct += predicted.eq(evals).sum().item()
+                test_correct += accuracy(evals.unsqueeze(1), outputs, tolerance=TOLERANCE)
         
         test_accuracy = 100. * test_correct / test_total
         print(f'Epoch: {epoch+1}/{num_epochs}, Train Loss: {train_loss/len(train_loader):.4f}, Test Loss: {test_loss/len(test_loader):.4f}, Test Acc: {test_accuracy:.2f}%')
@@ -259,6 +269,10 @@ def main():
     # Cargar datos--ok
     maps, evals = load_and_merge_data(data_dir="train")
     print(f"Min value: {min(evals)} | Max value: {max(evals)}")
+    low = -1500
+    high = 2500
+    evals = (1 * ((np.array(evals) + abs(low)) / (high + abs(low)))).tolist()
+    print(f"New min value: {min(evals)} | New max value: {max(evals)}")
     
     # Preprocesar mapas-- ok
     maps, input_size = preprocess_maps(maps)
