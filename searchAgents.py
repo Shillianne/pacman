@@ -112,7 +112,7 @@ class TranspositionTable:
 
 
 class SearchAgent(MultiAgentSearchAgent):
-    def __init__(self, evalFn='neuralEvaluationFunction', depth=2,
+    def __init__(self, evalFn='customEvaluationFunction', depth=2,
                  alphabeta: bool | str = True,
                  transposition: bool | str = True,
                  ordering: bool | str = True,
@@ -132,11 +132,11 @@ class SearchAgent(MultiAgentSearchAgent):
         self.move_ordering =  ordering if isinstance(ordering, bool) else ordering == "True"
         self.ghosts_heat_map, self.current_heat_map, self.original_food  = heat_maps(self.layout)
         self.save = False
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        state_dict = torch.load("models/pacman_eval_model.pth")
-        self.model = PacmanEval(state_dict['input_size'])
-        self.model.cuda()
-        self.model.load_state_dict(state_dict['model_state_dict'])
+        if self.evaluationFunction.__name__ == "neuralEvaluationFunction":
+            state_dict = torch.load("models/pacman_eval_model.pth")
+            self.model = PacmanEval(state_dict['input_size'])
+            self.model.cuda()
+            self.model.load_state_dict(state_dict['model_state_dict'])
 
         print(f"Defined a Search Agent with a depth of {self.depth}, alphabeta {alphabeta}, transposition {transposition}, ordering {ordering} on map {self.layout}")
         if not self.alphabeta and not self.transposition and not self.move_ordering:
@@ -175,8 +175,10 @@ class SearchAgent(MultiAgentSearchAgent):
         if state.isWin() or state.isLose() or ply == 0:
             self.logger.debug(f"{'\t' * (self.ply - ply)}Reached bottom of the search tree.")
             # Carlos
-            # eval = self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
-            eval = self.evaluationFunction(self.model, state)
+            if self.evaluationFunction.__name__ == "customEvaluationFunction":
+                eval = self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
+            else:
+                eval = self.evaluationFunction(self.model, state)
             if root is not None:
                 root.eval = eval
                 root.alpha = alpha
@@ -195,8 +197,10 @@ class SearchAgent(MultiAgentSearchAgent):
         if "Stop" in moves:
             moves.remove("Stop")
         if not moves:
-            # return self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
-            return self.evaluationFunction(self.model, state)
+            if self.evaluationFunction.__name__ == "customEvaluationFunction":
+                eval = self.evaluationFunction(copy_list_of_moves, self.ghosts_heat_map, self.current_heat_map, self.original_food, state)
+            else:
+                eval = self.evaluationFunction(self.model, state)
         states = None
         if self.move_ordering:
             moves, states = order_moves(moves, state, agentIndex)
@@ -266,9 +270,9 @@ class SearchAgent(MultiAgentSearchAgent):
                     assert best_move is not None
                     if self.transposition:
                         if agentIndex == 0:  # Maximizing player - we have a lower bound
-                            self.transpositionTable.store_evaluation(key, ply, best_eval, TranspositionTable.UPPER_BOUND, best_move)
-                        else:  # Minimizing player - we have an upper bound
                             self.transpositionTable.store_evaluation(key, ply, best_eval, TranspositionTable.LOWER_BOUND, best_move)
+                        else:  # Minimizing player - we have an upper bound
+                            self.transpositionTable.store_evaluation(key, ply, best_eval, TranspositionTable.UPPER_BOUND, best_move)
                     if node is not None and root is not None:
                         # node.prunned = True
                         # root.children.append(node)
@@ -294,10 +298,10 @@ class SearchAgent(MultiAgentSearchAgent):
         if self.transposition:
             if best_eval <= o_alpha:
                 # All moves were worse than alpha - upper bound
-                eval_bound = TranspositionTable.LOWER_BOUND
+                eval_bound = TranspositionTable.UPPER_BOUND
             elif best_eval > o_beta:
                 # At least one move was better than beta - lower bound
-                eval_bound = TranspositionTable.UPPER_BOUND
+                eval_bound = TranspositionTable.LOWER_BOUND
             else: 
                 # Exact value
                 eval_bound = TranspositionTable.EXACT
@@ -307,8 +311,8 @@ class SearchAgent(MultiAgentSearchAgent):
 
     @profile
     def getAction(self, state: GameState):
-        root = Node("root", custom_hash(state), state.data, 0, float("-inf"), float("inf"), 0)
-        # root = None
+        # root = Node("root", custom_hash(state), state.data, 0, float("-inf"), float("inf"), 0)
+        root = None
         self.logger.info("Starting search")
         # print(self.n_called)
         # import code; code.interact(local=locals())
