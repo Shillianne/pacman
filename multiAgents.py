@@ -159,7 +159,11 @@ def neuralEvaluationFunction(model: PacmanEval, state: GameState):
     game_map[int(pacman_x)][int(pacman_y)] = 5
     t = torch.tensor(game_map, dtype=torch.float32, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
     eval = model(t.unsqueeze(0)).squeeze(0)
-    return eval.cpu().item()
+    value = eval.cpu().item()
+    low = -1500
+    high = 2500
+    res =(value * (high + abs(low))) - abs(low)
+    return res
 
 
 def customEvaluationFunction(list_of_moves: list,
